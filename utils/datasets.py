@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from PIL import Image, ExifTags
 from torch.utils.data import Dataset
 from tqdm import tqdm
+import pydicom
 
 import pickle
 from copy import deepcopy
@@ -42,6 +43,26 @@ for orientation in ExifTags.TAGS.keys():
         break
 
 
+def load_dicom(image_path, window_level=0, window_width=4500):
+    if 'npy' in image_path:
+        im = np.load(image_path)
+    else:
+        dcm = pydicom.dcmread(image_path)
+        assert dcm[0x00080060].value == 'CT', f'image modality is not CT ({dcm[0x00080060].value})'
+        assert hasattr(dcm, "ImagePositionPatient"), 'image has no ImagePositionPatient attribute'
+        im = pydicom.pixel_data_handlers.apply_modality_lut(dcm.pixel_array, dcm).astype('float32')
+        im[im.astype(int) == -3024] = -2048.
+    minval = window_level - (window_width / 2)
+    maxval = window_level + (window_width / 2)
+    im = im.clip(minval, maxval)
+    return im
+
+def dicom2rgb(im, window_level=0, window_width=4500):
+    minval = window_level - (window_width / 2)
+    maxval = window_level + (window_width / 2)
+    im = ((im - minval) / (maxval - minval) * 255).clip(0, 255).astype('uint8')
+    return im
+
 def get_hash(files):
     # Returns a single hash value of a list of files
     return sum(os.path.getsize(f) for f in files if os.path.isfile(f))
@@ -63,7 +84,7 @@ def exif_size(img):
 
 
 def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=False, cache=False, pad=0.0, rect=False,
-                      rank=-1, world_size=1, workers=8, image_weights=False, quad=False, prefix=''):
+                      rank=-1, world_size=1, workers=8, image_weights=False, quad=False, prefix='', window_level=0, window_width=4500):
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     with torch_distributed_zero_first(rank):
         dataset = LoadImagesAndLabels(path, imgsz, batch_size,
@@ -75,7 +96,8 @@ def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=Fa
                                       stride=int(stride),
                                       pad=pad,
                                       image_weights=image_weights,
-                                      prefix=prefix)
+                                      prefix=prefix,
+                                      window_level=window_level, window_width=window_width)
 
     batch_size = min(batch_size, len(dataset))
     nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
@@ -352,7 +374,7 @@ def img2label_paths(img_paths):
 
 class LoadImagesAndLabels(Dataset):  # for training/testing
     def __init__(self, path, img_size=640, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
-                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix=''):
+                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix='', window_level=0, window_width=4500):
         self.img_size = img_size
         self.augment = augment
         self.hyp = hyp
@@ -361,7 +383,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.mosaic = self.augment and not self.rect  # load 4 images at a time into a mosaic (only during training)
         self.mosaic_border = [-img_size // 2, -img_size // 2]
         self.stride = stride
-        self.path = path        
+        self.path = path
+        self.window_level=window_level
+        self.window_width=window_width
         #self.albumentations = Albumentations() if augment else None
 
         try:
@@ -379,7 +403,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                         # f += [p.parent / x.lstrip(os.sep) for x in t]  # local to global path (pathlib)
                 else:
                     raise Exception(f'{prefix}{p} does not exist')
-            self.img_files = sorted([x.replace('/', os.sep) for x in f if x.split('.')[-1].lower() in img_formats])
+            self.img_files = sorted([x.replace('/', os.sep) for x in f]) #if x.split('.')[-1].lower() in img_formats])
             # self.img_files = sorted([x for x in f if x.suffix[1:].lower() in img_formats])  # pathlib
             assert self.img_files, f'{prefix}No images found'
         except Exception as e:
@@ -454,7 +478,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 self.im_cache_dir.mkdir(parents=True, exist_ok=True)
             gb = 0  # Gigabytes of cached images
             self.img_hw0, self.img_hw = [None] * n, [None] * n
-            results = ThreadPool(8).imap(lambda x: load_image(*x), zip(repeat(self), range(n)))
+            results = ThreadPool(8).imap(lambda x: load_image(*x, self.window_level, self.window_width), zip(repeat(self), range(n)))
             pbar = tqdm(enumerate(results), total=n)
             for i, x in pbar:
                 if cache_images == 'disk':
@@ -475,12 +499,17 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         for i, (im_file, lb_file) in enumerate(pbar):
             try:
                 # verify images
-                im = Image.open(im_file)
-                im.verify()  # PIL verify
-                shape = exif_size(im)  # image size
-                segments = []  # instance segments
-                assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
-                assert im.format.lower() in img_formats, f'invalid image format {im.format}'
+                #im = Image.open(im_file)
+                #im.verify()  # PIL verify
+                #shape = exif_size(im)  # image size
+                #segments = []  # instance segments
+                #assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
+                #assert im.format.lower() in img_formats, f'invalid image format {im.format}'
+                
+                #im = load_dicom(im_file, self.window_level, self.window_width)
+                #shape = im.shape
+                #segments = []  # instance segments
+                #assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
 
                 # verify labels
                 if os.path.isfile(lb_file):
@@ -663,12 +692,13 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
 
 # Ancillary functions --------------------------------------------------------------------------------------------------
-def load_image(self, index):
+def load_image(self, index, window_level=0, window_width=4500):
     # loads 1 image from dataset, returns img, original hw, resized hw
     img = self.imgs[index]
     if img is None:  # not cached
         path = self.img_files[index]
-        img = cv2.imread(path)  # BGR
+        #img = cv2.imread(path)  # BGR
+        img = load_dicom(path, window_level, window_width)
         assert img is not None, 'Image Not Found ' + path
         h0, w0 = img.shape[:2]  # orig hw
         r = self.img_size / max(h0, w0)  # resize image to img_size
@@ -1265,7 +1295,8 @@ def extract_boxes(path='../coco/'):  # from utils.datasets import *; extract_box
     for im_file in tqdm(files, total=n):
         if im_file.suffix[1:] in img_formats:
             # image
-            im = cv2.imread(str(im_file))[..., ::-1]  # BGR to RGB
+            #im = cv2.imread(str(im_file))[..., ::-1]  # BGR to RGB
+            im = load_dicom(str(im_file))
             h, w = im.shape[:2]
 
             # labels
@@ -1287,7 +1318,7 @@ def extract_boxes(path='../coco/'):  # from utils.datasets import *; extract_box
 
                     b[[0, 2]] = np.clip(b[[0, 2]], 0, w)  # clip boxes outside of image
                     b[[1, 3]] = np.clip(b[[1, 3]], 0, h)
-                    assert cv2.imwrite(str(f), im[b[1]:b[3], b[0]:b[2]]), f'box failure in {f}'
+                    assert cv2.imwrite(str(f), dicom2rgb(im)[b[1]:b[3], b[0]:b[2]]), f'box failure in {f}'
 
 
 def autosplit(path='../coco', weights=(0.9, 0.1, 0.0), annotated_only=False):
