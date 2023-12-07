@@ -22,8 +22,7 @@ def attempt_download(file, repo='WongKinYiu/yolov7'):
 
     if not file.exists():
         tag='v0.1'
-        assets = ['yolov7.pt', 'yolov7-tiny.pt', 'yolov7x.pt', 'yolov7-d6.pt', 'yolov7-e6.pt', 
-                      'yolov7-e6e.pt', 'yolov7-w6.pt']
+        assets = ['yolov7_training.pt', 'yolov7x_training.pt', 'yolov7-w6_training.pt', 'yolov7-e6_training.pt', 'yolov7-d6_training.pt', 'yolov7-e6e_training.pt']
 
         #try:
         #    response = requests.get(f'https://api.github.com/repos/{repo}/releases/latest').json()  # github api
