@@ -506,9 +506,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 #assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
                 #assert im.format.lower() in img_formats, f'invalid image format {im.format}'
                 
-                #im = load_dicom(im_file, self.window_level, self.window_width)
-                #shape = im.shape
-                #segments = []  # instance segments
+                im = load_dicom(im_file, self.window_level, self.window_width)
+                shape = im.shape
+                segments = []  # instance segments
                 #assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
 
                 # verify labels
