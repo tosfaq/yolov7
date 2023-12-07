@@ -392,7 +392,7 @@ def train(hyp, opt, device, tb_writer=None):
                 # Plot
                 if plots and ni < 10:
                     f = save_dir / f'train_batch{ni}.jpg'  # filename
-                    Thread(target=plot_images, args=(imgs, targets, paths, f), daemon=True).start()
+                    Thread(target=plot_images, args=(imgs, targets, paths, f), kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
                     # if tb_writer:
                     #     tb_writer.add_image(f, result, dataformats='HWC', global_step=epoch)
                     #     tb_writer.add_graph(torch.jit.trace(model, imgs, strict=False), [])  # add model graph

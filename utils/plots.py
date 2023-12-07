@@ -111,7 +111,13 @@ def output_to_target(output):
     return np.array(targets)
 
 
-def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max_size=640, max_subplots=16):
+def plot_images(images, targets, paths=None, fname='images.jpg', names=None, 
+                max_size=640, max_subplots=16, window_level=0, window_width=4500):
+    def apply_window(image, window_level, window_width):
+        minval = window_level - (window_width / 2)
+        maxval = window_level + (window_width / 2)
+        return ((image - minval) / (maxval - minval) * 255).clip(0, 255).astype('uint8')
+
     # Plot image grid with labels
 
     if isinstance(images, torch.Tensor):
@@ -143,6 +149,8 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
 
         block_x = int(w * (i // ns))
         block_y = int(h * (i % ns))
+
+        img = apply_window(img, window_level, window_width)
 
         img = img.transpose(1, 2, 0)
         if scale_factor < 1:
