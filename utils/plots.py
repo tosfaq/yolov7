@@ -125,11 +125,11 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None,
     if isinstance(targets, torch.Tensor):
         targets = targets.cpu().numpy()
 
-    print("Images max and min:", images.max(), images.min())
+    print("plot_images: Images max and min:", images.max(), images.min())
 
     # un-normalise
-    if np.max(images[0]) <= 1:
-        images *= 255
+    #if np.max(images[0]) <= 1:
+    #    images *= 255
 
     tl = 3  # line thickness
     tf = max(tl - 1, 1)  # font thickness
