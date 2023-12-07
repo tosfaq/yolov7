@@ -366,10 +366,15 @@ class LoadStreams:  # multiple IP or RTSP cameras
         return 0  # 1E12 frames = 32 streams at 30 FPS for 30 years
 
 
+# def img2label_paths(img_paths):
+#     # Define label paths as a function of image paths
+#     sa, sb = os.sep + 'images' + os.sep, os.sep + 'labels' + os.sep  # /images/, /labels/ substrings
+#     return ['txt'.join(x.replace(sa, sb, 1).rsplit(x.split('.')[-1], 1)) for x in img_paths]
+
 def img2label_paths(img_paths):
-    # Define label paths as a function of image paths
     sa, sb = os.sep + 'images' + os.sep, os.sep + 'labels' + os.sep  # /images/, /labels/ substrings
-    return ['txt'.join(x.replace(sa, sb, 1).rsplit(x.split('.')[-1], 1)) for x in img_paths]
+    return [img_path.replace(sa, sb, 1).split('.')[0] + ".txt" for img_path in img_paths]
+
 
 
 class LoadImagesAndLabels(Dataset):  # for training/testing
@@ -610,7 +615,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             #img, labels = self.albumentations(img, labels)
 
             # Augment colorspace
-            augment_hsv(img, hgain=hyp['hsv_h'], sgain=hyp['hsv_s'], vgain=hyp['hsv_v'])
+            #augment_hsv(img, hgain=hyp['hsv_h'], sgain=hyp['hsv_s'], vgain=hyp['hsv_v'])
 
             # Apply cutouts
             # if random.random() < 0.9:
@@ -652,7 +657,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             labels_out[:, 1:] = torch.from_numpy(labels)
 
         # Convert
-        img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        #img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        img = np.expand_dims(img, axis=0)
         img = np.ascontiguousarray(img)
 
         return torch.from_numpy(img), labels_out, self.img_files[index], shapes
@@ -748,7 +754,7 @@ def load_mosaic(self, index):
 
         # place img in img4
         if i == 0:  # top left
-            img4 = np.full((s * 2, s * 2, img.shape[2]), 114, dtype=np.uint8)  # base image with 4 tiles
+            img4 = np.full((s * 2, s * 2), 114, dtype=np.uint8)  # base image with 4 tiles
             x1a, y1a, x2a, y2a = max(xc - w, 0), max(yc - h, 0), xc, yc  # xmin, ymin, xmax, ymax (large image)
             x1b, y1b, x2b, y2b = w - (x2a - x1a), h - (y2a - y1a), w, h  # xmin, ymin, xmax, ymax (small image)
         elif i == 1:  # top right
@@ -806,7 +812,7 @@ def load_mosaic9(self, index):
 
         # place img in img9
         if i == 0:  # center
-            img9 = np.full((s * 3, s * 3, img.shape[2]), 114, dtype=np.uint8)  # base image with 4 tiles
+            img9 = np.full((s * 3, s * 3), 114, dtype=np.uint8)  # base image with 4 tiles
             h0, w0 = h, w
             c = s, s, s + w, s + h  # xmin, ymin, xmax, ymax (base) coordinates
         elif i == 1:  # top
@@ -883,7 +889,7 @@ def load_samples(self, index):
 
         # place img in img4
         if i == 0:  # top left
-            img4 = np.full((s * 2, s * 2, img.shape[2]), 114, dtype=np.uint8)  # base image with 4 tiles
+            img4 = np.full((s * 2, s * 2), 114, dtype=np.uint8)  # base image with 4 tiles
             x1a, y1a, x2a, y2a = max(xc - w, 0), max(yc - h, 0), xc, yc  # xmin, ymin, xmax, ymax (large image)
             x1b, y1b, x2b, y2b = w - (x2a - x1a), h - (y2a - y1a), w, h  # xmin, ymin, xmax, ymax (small image)
         elif i == 1:  # top right
