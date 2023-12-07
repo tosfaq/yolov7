@@ -125,6 +125,8 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None,
     if isinstance(targets, torch.Tensor):
         targets = targets.cpu().numpy()
 
+    print("Images max and min:", images.max(), images.min())
+
     # un-normalise
     if np.max(images[0]) <= 1:
         images *= 255
