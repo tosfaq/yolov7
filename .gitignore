@@ -22,6 +22,7 @@
 *.cfg
 !setup.cfg
 !cfg/yolov3*.cfg
+READY_DATASET/*
 
 storage.googleapis.com
 runs/*
