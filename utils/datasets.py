@@ -218,6 +218,8 @@ class LoadImages:  # for inference
         img = np.expand_dims(img, axis=0)
         img = np.ascontiguousarray(img)
 
+        print(img.shape)
+
         return path, img, img0, self.cap
 
     def new_video(self, path):
