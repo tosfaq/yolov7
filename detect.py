@@ -139,6 +139,7 @@ def detect(save_img=False):
                 cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
+            save_path = save_path+'.png'
             if save_img:
                 if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
