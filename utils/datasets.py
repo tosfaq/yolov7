@@ -43,7 +43,7 @@ for orientation in ExifTags.TAGS.keys():
         break
 
 
-def load_dicom(image_path, window_level=0, window_width=4500):
+def load_dicom(image_path, window_level=0, window_width=4500, to01=False):
     if 'npy' in image_path:
         im = np.load(image_path)
     else:
@@ -55,6 +55,8 @@ def load_dicom(image_path, window_level=0, window_width=4500):
     minval = window_level - (window_width / 2)
     maxval = window_level + (window_width / 2)
     im = im.clip(minval, maxval)
+    if to01:
+        im = (im - minval) / (maxval - minval)
     return im
 
 def dicom2rgb(im, window_level=0, window_width=4500):
@@ -147,7 +149,7 @@ class _RepeatSampler(object):
             yield from iter(self.sampler)
 
 
-class LoadImages:  # for inference
+class LoadImages:  # for inference (currently supports only images)
     def __init__(self, path, img_size=640, stride=32, window_level=0, window_width=4500):
         p = str(Path(path).absolute())  # os-agnostic absolute path
         if '*' in p:
@@ -161,7 +163,8 @@ class LoadImages:  # for inference
 
         #images = [x for x in files if x.split('.')[-1].lower() in img_formats]
         images = [x for x in files]
-        videos = [x for x in files if x.split('.')[-1].lower() in vid_formats]
+        videos = []
+        #videos = [x for x in files if x.split('.')[-1].lower() in vid_formats]
         ni, nv = len(images), len(videos)
 
         self.img_size = img_size
@@ -207,7 +210,7 @@ class LoadImages:  # for inference
             # Read image
             self.count += 1
             #img0 = cv2.imread(path)  # BGR
-            img0 = load_dicom(path, window_level=0, window_width=4500)
+            img0 = load_dicom(path, window_level=window_level, window_width=window_width, to01=True)
             assert img0 is not None, 'Image Not Found ' + path
             #print(f'image {self.count}/{self.nf} {path}: ', end='')
 
@@ -219,8 +222,7 @@ class LoadImages:  # for inference
         img = np.expand_dims(img, axis=0)
         img = np.ascontiguousarray(img)
 
-        print(img.shape)
-
+        #print(img.shape)
         return path, img, img0, self.cap
 
     def new_video(self, path):
@@ -517,7 +519,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 #assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
                 #assert im.format.lower() in img_formats, f'invalid image format {im.format}'
                 
-                im = load_dicom(im_file, self.window_level, self.window_width)
+                im = load_dicom(im_file, self.window_level, self.window_width, to01=True)
                 shape = im.shape
                 segments = []  # instance segments
                 #assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
@@ -710,12 +712,13 @@ def load_image(self, index, window_level=0, window_width=4500):
     if img is None:  # not cached
         path = self.img_files[index]
         #img = cv2.imread(path)  # BGR
-        img = load_dicom(path, window_level, window_width)
+        img = load_dicom(path, window_level, window_width, to01=True)
         assert img is not None, 'Image Not Found ' + path
         h0, w0 = img.shape[:2]  # orig hw
         r = self.img_size / max(h0, w0)  # resize image to img_size
         if r != 1:  # always resize down, only resize up if training with augmentation
-            interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
+            #interp = cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR
+            interp = cv2.INTER_AREA if r < 1 and not self.augment else cv.INTER_NEAREST
             img = cv2.resize(img, (int(w0 * r), int(h0 * r)), interpolation=interp)
         return img, (h0, w0), img.shape[:2]  # img, hw_original, hw_resized
     else:
@@ -1308,7 +1311,7 @@ def extract_boxes(path='../coco/'):  # from utils.datasets import *; extract_box
         if im_file.suffix[1:] in img_formats:
             # image
             #im = cv2.imread(str(im_file))[..., ::-1]  # BGR to RGB
-            im = load_dicom(str(im_file))
+            im = load_dicom(str(im_file), to01=True)
             h, w = im.shape[:2]
 
             # labels
@@ -1330,7 +1333,7 @@ def extract_boxes(path='../coco/'):  # from utils.datasets import *; extract_box
 
                     b[[0, 2]] = np.clip(b[[0, 2]], 0, w)  # clip boxes outside of image
                     b[[1, 3]] = np.clip(b[[1, 3]], 0, h)
-                    assert cv2.imwrite(str(f), dicom2rgb(im)[b[1]:b[3], b[0]:b[2]]), f'box failure in {f}'
+                    assert cv2.imwrite(str(f), (im * 255).clip(0, 255).astype('uint8')[b[1]:b[3], b[0]:b[2]]), f'box failure in {f}'
 
 
 def autosplit(path='../coco', weights=(0.9, 0.1, 0.0), annotated_only=False):

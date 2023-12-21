@@ -14,6 +14,7 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 
+
 def detect(save_img=False):
     source, weights, view_img, save_txt, imgsz, trace = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size, not opt.no_trace
     save_img = not opt.nosave and not source.endswith('.txt')  # save inference images
@@ -73,8 +74,6 @@ def detect(save_img=False):
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
 
-        print(img.shape)
-
         # Warmup
         if device.type != 'cpu' and (old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
             old_img_b = img.shape[0]
@@ -108,7 +107,9 @@ def detect(save_img=False):
             save_path = str(save_dir / p.name)  # img.jpg
             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-            im0 = dicom2rgb(im0, window_level=0, window_width=4500)
+            #im0 = dicom2rgb(im0, window_level=0, window_width=4500)
+            if np.max(im0) <= 1:
+                im0 = (im0 * 255).clip(0, 255).astype('uint8')
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
