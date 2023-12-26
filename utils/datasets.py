@@ -51,7 +51,7 @@ def load_dicom(image_path, window_level=0, window_width=4500):
         assert dcm[0x00080060].value == 'CT', f'image modality is not CT ({dcm[0x00080060].value})'
         assert hasattr(dcm, "ImagePositionPatient"), 'image has no ImagePositionPatient attribute'
         im = pydicom.pixel_data_handlers.apply_modality_lut(dcm.pixel_array, dcm).astype('float32')
-        im[im.astype(int) == -3024] = -2048.
+    im[im.astype(int) == -3024] = -2048.
     minval = window_level - (window_width / 2)
     maxval = window_level + (window_width / 2)
     im = im.clip(minval, maxval)
@@ -150,6 +150,8 @@ class _RepeatSampler(object):
 class LoadImages:  # for inference (currently supports only images)
     def __init__(self, path, img_size=640, stride=32, window_level=0, window_width=4500):
         p = str(Path(path).absolute())  # os-agnostic absolute path
+        self.window_level = window_level
+        self.window_width = window_width
         if '*' in p:
             files = sorted(glob.glob(p, recursive=True))  # glob
         elif os.path.isdir(p):
@@ -208,7 +210,7 @@ class LoadImages:  # for inference (currently supports only images)
             # Read image
             self.count += 1
             #img0 = cv2.imread(path)  # BGR
-            img0 = load_dicom(path, window_level=window_level, window_width=window_width)
+            img0 = load_dicom(path, window_level=self.window_level, window_width=self.window_width)
             assert img0 is not None, 'Image Not Found ' + path
             #print(f'image {self.count}/{self.nf} {path}: ', end='')
 
