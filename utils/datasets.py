@@ -52,9 +52,9 @@ def load_dicom(image_path, window_level=0, window_width=4500):
         assert hasattr(dcm, "ImagePositionPatient"), 'image has no ImagePositionPatient attribute'
         im = pydicom.pixel_data_handlers.apply_modality_lut(dcm.pixel_array, dcm).astype('float32')
     im[im.astype(int) == -3024] = -2048.
-    minval = window_level - (window_width / 2)
-    maxval = window_level + (window_width / 2)
-    im = im.clip(minval, maxval)
+    #minval = window_level - (window_width / 2)
+    #maxval = window_level + (window_width / 2)
+    #im = im.clip(minval, maxval)
     return im
 
 def dicom2rgb(im, window_level=0, window_width=4500):

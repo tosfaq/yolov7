@@ -128,7 +128,7 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None,
     # un-normalise
     #if np.max(images[0]) <= 1:
     #    images *= 255
-    images *= 255
+    #images *= 255
 
     tl = 3  # line thickness
     tf = max(tl - 1, 1)  # font thickness

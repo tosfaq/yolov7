@@ -337,7 +337,9 @@ def train(hyp, opt, device, tb_writer=None):
         optimizer.zero_grad()
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             ni = i + nb * epoch  # number integrated batches (since train start)
-            imgs = imgs.to(device, non_blocking=True).float() / 255.0  # uint8 to float32, 0-255 to 0.0-1.0
+            imgs = imgs.to(device, non_blocking=True).float() #/ 255.0  # uint8 to float32, 0-255 to 0.0-1.0
+            # standardizing
+            imgs = (imgs - float(opt.mean)) / float(opt.std)
 
             # Warmup
             if ni <= nw:
@@ -392,7 +394,8 @@ def train(hyp, opt, device, tb_writer=None):
                 # Plot
                 if plots and ni < 10:
                     f = save_dir / f'train_batch{ni}.jpg'  # filename
-                    Thread(target=plot_images, args=(imgs, targets, paths, f), kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
+                    # unstandardize before passing to plot (i.e passing original HU values)
+                    Thread(target=plot_images, args=(imgs * opt.std + opt.mean, targets, paths, f), kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
                     # if tb_writer:
                     #     tb_writer.add_image(f, result, dataformats='HWC', global_step=epoch)
                     #     tb_writer.add_graph(torch.jit.trace(model, imgs, strict=False), [])  # add model graph
@@ -535,6 +538,8 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=300)
     parser.add_argument('--window_level', type=int, default=0)
     parser.add_argument('--window_width', type=int, default=4500)
+    parser.add_argument('--mean', type=int, default=-878)
+    parser.add_argument('--std', type=int, default=773)
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
     parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='[train, test] image sizes')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
