@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 from numpy import random
 
 from models.experimental import attempt_load
-from utils.datasets import LoadStreams, LoadImages, dicom2rgb
+from utils.datasets import LoadStreams, LoadImages, dicom2rgb, standardize_image, unstandardize_image
 from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
     scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path
 from utils.plots import plot_one_box
@@ -71,8 +71,7 @@ def detect(save_img=False):
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         #img /= 255.0  # 0 - 255 to 0.0 - 1.0
-        # standardizing
-        img = (img - opt.mean) / opt.std
+        img = standardize_image(img, opt.mean, opt.std)
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
 

@@ -10,7 +10,7 @@ import yaml
 from tqdm import tqdm
 
 from models.experimental import attempt_load
-from utils.datasets import create_dataloader
+from utils.datasets import create_dataloader, dicom2rgb, standardize_image, unstandardize_image
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, check_requirements, \
     box_iou, non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path, colorstr
 from utils.metrics import ap_per_class, ConfusionMatrix
@@ -85,7 +85,7 @@ def test(data,
     # Dataloader
     if not training:
         if device.type != 'cpu':
-            model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
+            model(torch.zeros(1, 1, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
         task = opt.task if opt.task in ('train', 'val', 'test') else 'val'  # path to train/val/test images
         dataloader = create_dataloader(data[task], imgsz, batch_size, gs, opt, pad=0.5, rect=True,
                                        prefix=colorstr(f'{task}: '))[0]
@@ -104,7 +104,8 @@ def test(data,
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
-        img /= 255.0  # 0 - 255 to 0.0 - 1.0
+        #img /= 255.0  # 0 - 255 to 0.0 - 1.0
+        img = standardize_image(img, opt.mean, opt.std)
         targets = targets.to(device)
         nb, _, height, width = img.shape  # batch size, channels, height, width
 
@@ -160,7 +161,9 @@ def test(data,
                                  "scores": {"class_score": conf},
                                  "domain": "pixel"} for *xyxy, conf, cls in pred.tolist()]
                     boxes = {"predictions": {"box_data": box_data, "class_labels": names}}  # inference-space
-                    wandb_images.append(wandb_logger.wandb.Image(img[si], boxes=boxes, caption=path.name))
+
+                    img_rgb = dicom2rgb(unstandardize_image(img[si], opt.mean, opt.std), opt.window_level, opt.window_width)
+                    wandb_images.append(wandb_logger.wandb.Image(img_rgb, boxes=boxes, caption=path.name))
             wandb_logger.log_training_progress(predn, path, names) if wandb_logger and wandb_logger.wandb_run else None
 
             # Append to pycocotools JSON dictionary
@@ -214,9 +217,11 @@ def test(data,
         # Plot images
         if plots and batch_i < 3:
             f = save_dir / f'test_batch{batch_i}_labels.jpg'  # labels
-            Thread(target=plot_images, args=(img, targets, paths, f, names), daemon=True).start()
+            Thread(target=plot_images, args=(unstandardize_image(img, opt.mean, opt.std), targets, paths, f, names),
+                   kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
             f = save_dir / f'test_batch{batch_i}_pred.jpg'  # predictions
-            Thread(target=plot_images, args=(img, output_to_target(out), paths, f, names), daemon=True).start()
+            Thread(target=plot_images, args=(unstandardize_image(img, opt.mean, opt.std), output_to_target(out), paths, f, names),
+                   kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
@@ -293,6 +298,10 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str, default='data/coco.yaml', help='*.data path')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
+    parser.add_argument('--window_level', type=int, default=0)
+    parser.add_argument('--window_width', type=int, default=4500)
+    parser.add_argument('--mean', type=int, default=-878)
+    parser.add_argument('--std', type=int, default=773)
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.65, help='IOU threshold for NMS')
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')

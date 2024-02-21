@@ -25,7 +25,7 @@ import test  # import test.py to get mAP after each epoch
 from models.experimental import attempt_load
 from models.yolo import Model
 from utils.autoanchor import check_anchors
-from utils.datasets import create_dataloader
+from utils.datasets import create_dataloader, standardize_image, unstandardize_image
 from utils.general import labels_to_class_weights, increment_path, labels_to_image_weights, init_seeds, \
     fitness, strip_optimizer, get_latest_run, check_dataset, check_file, check_git_status, check_img_size, \
     check_requirements, print_mutation, set_logging, one_cycle, colorstr
@@ -338,8 +338,7 @@ def train(hyp, opt, device, tb_writer=None):
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             ni = i + nb * epoch  # number integrated batches (since train start)
             imgs = imgs.to(device, non_blocking=True).float() #/ 255.0  # uint8 to float32, 0-255 to 0.0-1.0
-            # standardizing
-            imgs = (imgs - float(opt.mean)) / float(opt.std)
+            imgs = standardize_image(imgs, opt.mean, opt.std)
 
             # Warmup
             if ni <= nw:
@@ -395,7 +394,7 @@ def train(hyp, opt, device, tb_writer=None):
                 if plots and ni < 10:
                     f = save_dir / f'train_batch{ni}.jpg'  # filename
                     # unstandardize before passing to plot (i.e passing original HU values)
-                    Thread(target=plot_images, args=(imgs * opt.std + opt.mean, targets, paths, f), kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
+                    Thread(target=plot_images, args=(unstandardize_image(imgs, opt.mean, opt.std), targets, paths, f), kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
                     # if tb_writer:
                     #     tb_writer.add_image(f, result, dataformats='HWC', global_step=epoch)
                     #     tb_writer.add_graph(torch.jit.trace(model, imgs, strict=False), [])  # add model graph

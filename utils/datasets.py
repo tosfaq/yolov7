@@ -57,6 +57,12 @@ def load_dicom(image_path, window_level=0, window_width=4500):
     #im = im.clip(minval, maxval)
     return im
 
+def standardize_image(im, mean, std):
+    return (im - mean) / std
+
+def unstandardize_image(im, mean, std):
+    return im * std + mean
+
 def dicom2rgb(im, window_level=0, window_width=4500):
     minval = window_level - (window_width / 2)
     maxval = window_level + (window_width / 2)
