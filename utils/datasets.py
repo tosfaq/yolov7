@@ -66,6 +66,12 @@ def unstandardize_image(im, mean, std):
 def dicom2rgb(im, window_level=0, window_width=4500):
     minval = window_level - (window_width / 2)
     maxval = window_level + (window_width / 2)
+    if isinstance(im, torch.Tensor):
+        if im.is_cuda:
+            im = im.cpu()
+        if im.requires_grad:
+            im = im.detach()
+        im = im.numpy()
     im = ((im - minval) / (maxval - minval) * 255).clip(0, 255).astype('uint8')
     return im
 
