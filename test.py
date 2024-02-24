@@ -40,7 +40,11 @@ def test(data,
          half_precision=True,
          trace=False,
          is_coco=False,
-         v5_metric=False):
+         v5_metric=False,
+         train_opt=None):
+    # called by train.py
+    if train_opt is not None:
+        opt = train_opt
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
