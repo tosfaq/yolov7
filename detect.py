@@ -60,7 +60,7 @@ def detect(save_img=False):
     names = model.module.names if hasattr(model, 'module') else model.names
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
     if len(names) == 1:
-        colors = [[80, 80, 80]]
+        colors = [[255, 0, 0]]  # red boxes
 
     # Run inference
     if device.type != 'cpu':
