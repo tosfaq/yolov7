@@ -343,7 +343,8 @@ if __name__ == '__main__':
              save_hybrid=opt.save_hybrid,
              save_conf=opt.save_conf,
              trace=not opt.no_trace,
-             v5_metric=opt.v5_metric
+             v5_metric=opt.v5_metric,
+             train_opt=opt
              )
 
     elif opt.task == 'speed':  # speed benchmarks
