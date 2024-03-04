@@ -107,8 +107,10 @@ def detect(save_img=False):
                 p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
-            save_path = str(save_dir / p.name)  # img.jpg
-            txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
+            #save_path = str(save_dir / p.name)  # img.jpg
+            save_path = str(save_dir / p)  # *.npy names may be not unique, so we preserve series path (img.png)
+            #txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
+            txt_path = str(save_dir / 'labels' / p.parent / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # preserve series path (img.txt)
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             im0 = dicom2rgb(im0, window_level=opt.window_level, window_width=opt.window_width)
             if len(det):
