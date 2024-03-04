@@ -128,6 +128,8 @@ def detect(save_img=False):
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
+                        # create folders for series
+                        os.makedirs(os.path.dirname(txt_path + '.txt'), exist_ok=True)
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
