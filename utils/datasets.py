@@ -174,7 +174,7 @@ class LoadImages:  # for inference (currently supports only images)
             raise Exception(f'ERROR: {p} does not exist')
 
         #images = [x for x in files if x.split('.')[-1].lower() in img_formats]
-        images = [x for x in files]
+        images = [x for x in files if os.path.isfile(x)]
         videos = []
         #videos = [x for x in files if x.split('.')[-1].lower() in vid_formats]
         ni, nv = len(images), len(videos)
