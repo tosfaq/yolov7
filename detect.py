@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 from numpy import random
 
 from models.experimental import attempt_load
-from utils.datasets import LoadStreams, LoadImages, dicom2rgb, standardize_image, unstandardize_image
+from utils.datasets import LoadStreams, LoadImages, dicom2rgb, standardize_image, unstandardize_image, get_folder_key
 from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
     scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path
 from utils.plots import plot_one_box
@@ -107,10 +107,11 @@ def detect(save_img=False):
                 p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
+            folder_key = get_folder_key(str(p.parent))
             #save_path = str(save_dir / p.name)  # img.jpg
-            save_path = str(save_dir / p)  # *.npy names may be not unique, so we preserve series path (img.png)
+            save_path = str(save_dir / folder_key / p.name)  # *.npy names may be not unique, so we preserve series path (img.png)
             #txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
-            txt_path = str(save_dir / 'labels' / p.parent / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # preserve series path (img.txt)
+            txt_path = str(save_dir / 'labels' / folder_key / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # preserve series path (img.txt)
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             im0 = dicom2rgb(im0, window_level=opt.window_level, window_width=opt.window_width)
             if len(det):

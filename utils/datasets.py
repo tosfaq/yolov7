@@ -42,6 +42,21 @@ for orientation in ExifTags.TAGS.keys():
     if ExifTags.TAGS[orientation] == 'Orientation':
         break
 
+def get_folder_key(path, last_n=5, short=False, short_cut=3, preserve_npy=True):
+    '''
+    Function returns key for a specific folder path (last_n folders in path, excludes npy)
+    '''
+    if preserve_npy:
+        if short:
+            return os.sep.join(path.split(os.sep)[-last_n:-short_cut]) if 'npy' not in path else \
+                      os.sep.join(path.split(os.sep)[-last_n-1:-short_cut])
+        return os.sep.join(path.split(os.sep)[-last_n:]) if 'npy' not in path else \
+                      os.sep.join(path.split(os.sep)[-last_n-1:])
+    if short:
+        return os.sep.join(path.split(os.sep)[-last_n:-short_cut]) if 'npy' not in path else \
+                      os.sep.join(path.split(os.sep)[-last_n-1:-1-short_cut])
+    return os.sep.join(path.split(os.sep)[-last_n:]) if 'npy' not in path else \
+                      os.sep.join(path.split(os.sep)[-last_n-1:-1])
 
 def load_dicom(image_path, window_level=0, window_width=4500):
     if 'npy' in image_path:
