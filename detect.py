@@ -6,6 +6,7 @@ import cv2
 import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
+import os
 
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages, dicom2rgb, standardize_image, unstandardize_image, get_folder_key
