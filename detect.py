@@ -150,6 +150,7 @@ def detect(save_img=False):
             save_path = save_path+'.png'
             if save_img:
                 if dataset.mode == 'image':
+                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
                     cv2.imwrite(save_path, im0)
                     print(f" The image with the result is saved in: {save_path}")
                 else:  # 'video' or 'stream'
