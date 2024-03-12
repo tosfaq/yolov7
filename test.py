@@ -313,6 +313,7 @@ if __name__ == '__main__':
     parser.add_argument('--window_width', type=int, default=4500)
     parser.add_argument('--mean', type=int, default=-878)
     parser.add_argument('--std', type=int, default=773)
+    parser.add_argument('--hu-thres', type=int, default=1400)
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.65, help='IOU threshold for NMS')
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')
