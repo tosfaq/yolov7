@@ -101,6 +101,9 @@ def detect(save_img=False):
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
         t3 = time_synchronized()
 
+        print("len pred", len(pred))
+        print("pred[0]", pred[0])
+
         # Remove detections with low HU values
         if opt.nolowhu:
             n_removed = remove_low_hu_detections(pred, img, hu_thres_norm)
