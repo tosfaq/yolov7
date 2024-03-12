@@ -99,6 +99,9 @@ def detect(save_img=False):
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
         t3 = time_synchronized()
 
+        # Remove detections with low HU values
+        remove_low_hu_detections(pred, img, hu_thres_norm)
+
         # Apply Classifier
         if classify:
             pred = apply_classifier(pred, modelc, img, im0s)
@@ -121,9 +124,6 @@ def detect(save_img=False):
             if len(det):
                 # Rescale boxes from img_size to im0_rgb size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0_rgb.shape).round()
-
-                # Remove detections with low HU values
-                det = remove_low_hu_detections(det, img, hu_thres_norm)
 
                 # Print results
                 for c in det[:, -1].unique():

@@ -317,33 +317,30 @@ def resample_segments(segments, n=1000):
     return segments
 
 
-def remove_low_hu_detections(det, img, thres_norm):
-    """ Removes detections with low HU
+def remove_low_hu_detections(pred, img, thres_norm):
+    """ Removes inplace detections with low HU from pred
 
     Args:
-        det:
-            (n,6) tensor per image [xyxy, conf, cls]
+        pred:
+            list of detections, on (n,6) tensor per image [xyxy, conf, cls]
         img: torch.Tensor
-            A normalised image that refers to detections passed
+            A normalised tensor of images that refers to detections passed
+            (shape N_batch x 1 x height x width)
         thres_norm:
             Normalised HU value ( (hu_thres - mean) / std )
 
-    Returns:
-        det:
-            Modified list (?) of detections
-
     """
-    indices_to_remove = []
-    mask = torch.ones(det.shape[0], dtype=torch.bool)
-    for i, (*xyxy, conf, cls) in enumerate(det):
-        x1, y1, x2, y2 = xyxy
-        max_val_inside = img[y1:y2, x1:x2].max()
-        if max_val_inside < thres_norm:  # box has low HU values
-            indices_to_remove.append(i)
-    mask[indices_to_remove] = False
-    print("Removed", len(indices_to_remove), "detections with low HUs")
-    return det[mask]
-
+    for i_img, det in enumerate(pred):  # detections per image
+        indices_to_remove = []
+        mask = torch.ones(det.shape[0], dtype=torch.bool)
+        for i_det, (*xyxy, conf, cls) in enumerate(det):
+            x1, y1, x2, y2 = xyxy
+            max_val_inside = img[i_img, 0, y1:y2, x1:x2].max()
+            if max_val_inside < thres_norm:  # box has low HU values
+                indices_to_remove.append(i_det)
+        mask[indices_to_remove] = False
+        pred[i_img] = det[mask]
+        print("Removed", len(indices_to_remove), "detections with low HUs")
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
