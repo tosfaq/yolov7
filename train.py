@@ -541,6 +541,10 @@ if __name__ == '__main__':
     parser.add_argument('--window_width', type=int, default=4500)
     parser.add_argument('--mean', type=int, default=-878)
     parser.add_argument('--std', type=int, default=773)
+    parser.add_argument('--nolowhu', action='store_true',
+                        help='remove detections with max HU value lower than --hu-thres argument')
+    parser.add_argument('--hu-thres', type=int, default=1400,
+                        help='threshold for removing detections with max HU value lower than given value')
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
     parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='[train, test] image sizes')
     parser.add_argument('--rect', action='store_true', help='rectangular training')

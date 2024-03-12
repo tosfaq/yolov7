@@ -72,6 +72,8 @@ def detect(save_img=False):
     old_img_w = old_img_h = imgsz
     old_img_b = 1
 
+    total_lowhu_removed = 0
+
     t0 = time.time()
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
@@ -100,7 +102,9 @@ def detect(save_img=False):
         t3 = time_synchronized()
 
         # Remove detections with low HU values
-        remove_low_hu_detections(pred, img, hu_thres_norm)
+        if opt.nolowhu:
+            n_removed = remove_low_hu_detections(pred, img, hu_thres_norm)
+            total_lowhu_removed += n_removed
 
         # Apply Classifier
         if classify:
@@ -178,6 +182,8 @@ def detect(save_img=False):
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
 
+    if opt.nolowhu:
+        print("Removed", total_lowhu_removed, "detections with HU lower than", opt.hu_thres)
     print(f'Done. ({time.time() - t0:.3f}s)')
 
 
@@ -190,7 +196,10 @@ if __name__ == '__main__':
     parser.add_argument('--window_width', type=int, default=4500)
     parser.add_argument('--mean', type=int, default=-878)
     parser.add_argument('--std', type=int, default=773)
-    parser.add_argument('--hu-thres', type=int, default=1400)
+    parser.add_argument('--nolowhu', action='store_true',
+                        help='remove detections with max HU value lower than --hu-thres argument')
+    parser.add_argument('--hu-thres', type=int, default=1400,
+                        help='threshold for removing detections with max HU value lower than given value')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')

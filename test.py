@@ -108,6 +108,7 @@ def test(data,
     p, r, f1, mp, mr, map50, map, t0, t1 = 0., 0., 0., 0., 0., 0., 0., 0., 0.
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
+    total_lowhu_removed = 0
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -134,7 +135,9 @@ def test(data,
             t1 += time_synchronized() - t
 
             # Remove detections with low HU values
-            remove_low_hu_detections(out, img, hu_thres_norm)
+            if opt.nolowhu:
+                n_removed = remove_low_hu_detections(out, img, hu_thres_norm)
+                total_lowhu_removed += n_removed
 
 
         # Statistics per image
@@ -257,6 +260,8 @@ def test(data,
     t = tuple(x / seen * 1E3 for x in (t0, t1, t0 + t1)) + (imgsz, imgsz, batch_size)  # tuple
     if not training:
         print('Speed: %.1f/%.1f/%.1f ms inference/NMS/total per %gx%g image at batch-size %g' % t)
+        if opt.nolowhu:
+            print("Removed", total_lowhu_removed, "detections with HU lower than", opt.hu_thres)
 
     # Plots
     if plots:
@@ -313,7 +318,10 @@ if __name__ == '__main__':
     parser.add_argument('--window_width', type=int, default=4500)
     parser.add_argument('--mean', type=int, default=-878)
     parser.add_argument('--std', type=int, default=773)
-    parser.add_argument('--hu-thres', type=int, default=1400)
+    parser.add_argument('--nolowhu', action='store_true',
+                        help='remove detections with max HU value lower than --hu-thres argument')
+    parser.add_argument('--hu-thres', type=int, default=1400,
+                        help='threshold for removing detections with max HU value lower than given value')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.65, help='IOU threshold for NMS')
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')

@@ -342,7 +342,7 @@ def remove_low_hu_detections(pred, img, thres_norm):
         mask[indices_to_remove] = False
         pred[i_img] = det[mask]
         total += len(indices_to_remove)
-    print("Removed", total, "detections with low HUs")
+    return total
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
