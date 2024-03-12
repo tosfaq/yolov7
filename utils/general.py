@@ -330,6 +330,7 @@ def remove_low_hu_detections(pred, img, thres_norm):
             Normalised HU value ( (hu_thres - mean) / std )
 
     """
+    total = 0
     for i_img, det in enumerate(pred):  # detections per image
         indices_to_remove = []
         mask = torch.ones(det.shape[0], dtype=torch.bool)
@@ -340,7 +341,8 @@ def remove_low_hu_detections(pred, img, thres_norm):
                 indices_to_remove.append(i_det)
         mask[indices_to_remove] = False
         pred[i_img] = det[mask]
-        print("Removed", len(indices_to_remove), "detections with low HUs")
+        total += len(indices_to_remove)
+    print("Removed", total, "detections with low HUs")
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
