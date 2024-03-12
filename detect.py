@@ -11,7 +11,7 @@ import os
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages, dicom2rgb, standardize_image, unstandardize_image, get_folder_key
 from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
-    scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path
+    scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path, remove_low_hu_detections
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
 
@@ -21,6 +21,9 @@ def detect(save_img=False):
     save_img = not opt.nosave and not source.endswith('.txt')  # save inference images
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://', 'https://'))
+
+    # HU threshold normalised
+    hu_thres_norm = (opt.hu_thres - opt.mean) / opt.std
 
     # Directories
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
@@ -114,10 +117,13 @@ def detect(save_img=False):
             #txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
             txt_path = str(save_dir / 'labels' / folder_key / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # preserve series path (img.txt)
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-            im0 = dicom2rgb(im0, window_level=opt.window_level, window_width=opt.window_width)
+            im0_rgb = dicom2rgb(im0, window_level=opt.window_level, window_width=opt.window_width)
             if len(det):
-                # Rescale boxes from img_size to im0 size
-                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+                # Rescale boxes from img_size to im0_rgb size
+                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0_rgb.shape).round()
+
+                # Remove detections with low HU values
+                det = remove_low_hu_detections(det, img, hu_thres_norm)
 
                 # Print results
                 for c in det[:, -1].unique():
@@ -136,14 +142,14 @@ def detect(save_img=False):
 
                     if save_img or view_img:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
-                        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+                        plot_one_box(xyxy, im0_rgb, label=label, color=colors[int(cls)], line_thickness=1)
 
             # Print time (inference + NMS)
             print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
 
             # Stream results
             if view_img:
-                cv2.imshow(str(p), im0)
+                cv2.imshow(str(p), im0_rgb)
                 cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
@@ -151,7 +157,7 @@ def detect(save_img=False):
             if save_img:
                 if dataset.mode == 'image':
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-                    cv2.imwrite(save_path, im0)
+                    cv2.imwrite(save_path, im0_rgb)
                     print(f" The image with the result is saved in: {save_path}")
                 else:  # 'video' or 'stream'
                     if vid_path != save_path:  # new video
@@ -163,10 +169,10 @@ def detect(save_img=False):
                             w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                             h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                         else:  # stream
-                            fps, w, h = 30, im0.shape[1], im0.shape[0]
+                            fps, w, h = 30, im0_rgb.shape[1], im0_rgb.shape[0]
                             save_path += '.mp4'
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                    vid_writer.write(im0)
+                    vid_writer.write(im0_rgb)
 
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
@@ -184,6 +190,7 @@ if __name__ == '__main__':
     parser.add_argument('--window_width', type=int, default=4500)
     parser.add_argument('--mean', type=int, default=-878)
     parser.add_argument('--std', type=int, default=773)
+    parser.add_argument('--hu-thres', type=int, default=1400)
     parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')

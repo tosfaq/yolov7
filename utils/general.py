@@ -317,6 +317,34 @@ def resample_segments(segments, n=1000):
     return segments
 
 
+def remove_low_hu_detections(det, img, thres_norm):
+    """ Removes detections with low HU
+
+    Args:
+        det:
+            (n,6) tensor per image [xyxy, conf, cls]
+        img: torch.Tensor
+            A normalised image that refers to detections passed
+        thres_norm:
+            Normalised HU value ( (hu_thres - mean) / std )
+
+    Returns:
+        det:
+            Modified list (?) of detections
+
+    """
+    indices_to_remove = []
+    mask = torch.ones(det.shape[0], dtype=torch.bool)
+    for i, (*xyxy, conf, cls) in enumerate(det):
+        x1, y1, x2, y2 = xyxy
+        max_val_inside = img[y1:y2, x1:x2].max()
+        if max_val_inside < thres_norm:  # box has low HU values
+            indices_to_remove.append(i)
+    mask[indices_to_remove] = False
+    print("Removed", len(indices_to_remove), "detections with low HUs")
+    return det[mask]
+
+
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
     if ratio_pad is None:  # calculate from img0_shape
