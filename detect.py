@@ -104,6 +104,8 @@ def detect(save_img=False):
         print("len pred", len(pred))
         print("pred[0]", pred[0])
 
+        print("img.shape", img.shape)
+
         # Remove detections with low HU values
         if opt.nolowhu:
             n_removed = remove_low_hu_detections(pred, img, hu_thres_norm)
