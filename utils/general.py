@@ -336,6 +336,9 @@ def remove_low_hu_detections(pred, img, thres_norm):
         mask = torch.ones(det.shape[0], dtype=torch.bool)
         for i_det, (*xyxy, conf, cls) in enumerate(det):
             x1, y1, x2, y2 = xyxy
+            if abs(x1-x2) == 0 or abs(y1-y2) == 0:
+                indices_to_remove.append(i_det)
+                continue
             # REMOVE AFTER DEBUGGING
             print("slice shape", img[i_img, 0, int(y1):int(y2), int(x1):int(x2)].shape)
             max_val_inside = img[i_img, 0, int(y1):int(y2), int(x1):int(x2)].max()
