@@ -197,12 +197,14 @@ def test(data,
 
             # Assign all predictions as incorrect
             correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool, device=device)
+
             # num_cls rows per image (i.e. slice)
-            num_cls = len(torch.unique(labels[:, 0]))
+            num_cls = len(torch.unique(pred[:, 5]))
             correct_slice = torch.zeros(num_cls, niou, dtype=torch.bool, device=device)
             confs_slice = torch.zeros(num_cls)
-            pcls_slice = torch.unique(labels[:, 0])
-            tcls_slice = torch.unique(labels[:, 0])
+            pcls_slice = torch.unique(pred[:, 5])
+            tcls_slice = torch.unique(labels[:, 0]).tolist()
+
             if nl:
                 detected = []  # target indices
                 tcls_tensor = labels[:, 0]
@@ -246,14 +248,15 @@ def test(data,
                         correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
                         #print("correct_predictions", correct_predictions)
                         confs_slice[ci] = pred[pi][correct_predictions, 4].max(0)[0] if len(correct_predictions) else torch.zeros(1)
-                        #print("confs_slice[ci]", confs_slice[ci])
                         correct_slice[ci] = correct[pi].max(0)[0]
-                        #print("correct_slice[ci]", correct_slice[ci])
+                        print("correct_slice[ci]", correct_slice[ci])
+                        print("confs_slice[ci]", confs_slice[ci])
+                        print("pcls_slice", pcls_slice)
+                        print("tcls_slice", tcls_slice)
 
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
-            print("correct.shape", correct.shape)
-            print("tcls.shape", len(tcls))
+
             stats_slice.append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice.cpu()))
 
         # Plot images
