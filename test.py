@@ -244,7 +244,7 @@ def test(data,
                         print("correct[pi].sum(1)", correct[pi].sum(1))
                         correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
                         print("correct_predictions", correct_predictions)
-                        confs_slice[ci] = pred[pi][correct_predictions, 4].max(0)[0] if correct_predictions else torch.Tensor(0.0)
+                        confs_slice[ci] = pred[pi][correct_predictions, 4].max(0)[0] if correct_predictions else torch.zeros(1)
                         print("confs_slice[ci]", confs_slice[ci])
                         correct_slice[ci] = correct[pi].max(0)[0]
                         print("correct_slice[ci]", correct_slice[ci])
