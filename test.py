@@ -267,10 +267,17 @@ def test(data,
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
-    print("stats[0].shape", stats[0].shape)
-    print("stats[0]", stats[0])
+    print("stats[0].shape (correct)", stats[0].shape)
+    print("stats[1].shape (conf)", stats[1].shape)
+    print("stats[2].shape (pcls)", stats[2].shape)
+    print("stats[3].shape (tcls)", stats[3].shape)
     stats_slice = [np.concatenate(x, 0) for x in zip(*stats_slice)]  # to numpy
-    print("Stats_slice length", len(stats_slice))
+    print("stats_slice[0].shape (correct)", stats[0].shape)
+    print("stats_slice[1].shape (conf)", stats[1].shape)
+    print("stats_slice[2].shape (pcls)", stats[2].shape)
+    print("stats_slice[3].shape (tcls)", stats[3].shape)
+
+    print("    seen    ", seen)
 
     if len(stats_slice) and stats_slice[0].any():
         p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'slice'), names=names)
