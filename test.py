@@ -253,7 +253,7 @@ def test(data,
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
             print("correct.shape", correct.shape)
-            print("tcls.shape", tcls.shape)
+            print("tcls.shape", len(tcls))
             stats_slice.append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice.cpu()))
 
         # Plot images
