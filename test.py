@@ -234,6 +234,12 @@ def test(data,
                                 if len(detected) == nl:  # all targets already located in image
                                     break
                         # choosing indices of correct predictions (with at least iouv[0])
+                        print("pred.shape", pred.shape)
+                        print("pred", pred)
+                        print("pi.shape", pi.shape)
+                        print("pi", pi)
+                        print("pred[pi]", pred[pi])
+                        print("correct[pi].sum(1).nonzero(as_tuple=False)", correct[pi].sum(1).nonzero(as_tuple=False))
                         confs_slice[ci] = pred[pi][correct[pi].sum(1).nonzero(as_tuple=False), 4].max(0)[0]
                         correct_slice[ci] = correct[pi].max(0)[0]
 
