@@ -234,7 +234,7 @@ def test(data,
                                 if len(detected) == nl:  # all targets already located in image
                                     break
                         # choosing indices of correct predictions (with at least iouv[0])
-                        confs_slice[ci] = pred[pi][correct[pi].sum(1).nonzero(as_tuple=False), 4].max()
+                        confs_slice[ci] = pred[pi][correct[pi].sum(1).nonzero(as_tuple=False), 4].max(0)[0]
                         correct_slice[ci] = correct[pi].max(0)[0]
 
             # Append statistics (correct, conf, pcls, tcls)
