@@ -239,6 +239,8 @@ def test(data,
                         print("pi.shape", pi.shape)
                         print("pi", pi)
                         print("pred[pi]", pred[pi])
+                        print("correct[pi]", correct[pi])
+                        print("correct[pi].sum(1)", correct[pi].sum(1))
                         print("correct[pi].sum(1).nonzero(as_tuple=False)", correct[pi].sum(1).nonzero(as_tuple=False))
                         confs_slice[ci] = pred[pi][correct[pi].sum(1).nonzero(as_tuple=False), 4].max(0)[0]
                         correct_slice[ci] = correct[pi].max(0)[0]
