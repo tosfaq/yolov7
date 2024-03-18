@@ -252,6 +252,9 @@ def test(data,
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
+    stats_slice = [np.concatenate(x, 0) for x in zip(*stats_slice)]  # to numpy
+    print("Stats_slice length", len(stats_slice))
+
     if len(stats_slice) and stats_slice[0].any():
         p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'slice'), names=names)
         ap50_slice, ap_slice = ap_slice[:, 0], ap_slice.mean(1)  # AP@0.5, AP@0.5:0.95
