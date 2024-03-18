@@ -275,10 +275,10 @@ def test(data,
     print("stats[2].shape (pcls)", stats[2].shape)
     print("stats[3].shape (tcls)", stats[3].shape)
     stats_slice = [np.concatenate(x, 0) for x in zip(*stats_slice)]  # to numpy
-    print("stats_slice[0].shape (correct)", stats[0].shape)
-    print("stats_slice[1].shape (conf)", stats[1].shape)
-    print("stats_slice[2].shape (pcls)", stats[2].shape)
-    print("stats_slice[3].shape (tcls)", stats[3].shape)
+    print("stats_slice[0].shape (correct)", stats_slice[0].shape)
+    print("stats_slice[1].shape (conf)", stats_slice[1].shape)
+    print("stats_slice[2].shape (pcls)", stats_slice[2].shape)
+    print("stats_slice[3].shape (tcls)", stats_slice[3].shape)
 
     print("    seen    ", seen)
 
