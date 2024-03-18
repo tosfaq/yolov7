@@ -242,9 +242,12 @@ def test(data,
                         print("correct", correct)
                         print("correct[pi]", correct[pi])
                         print("correct[pi].sum(1)", correct[pi].sum(1))
-                        print("correct[pi].sum(1).nonzero(as_tuple=False)", correct[pi].sum(1).nonzero(as_tuple=False))
-                        confs_slice[ci] = pred[pi][correct[pi].sum(1).nonzero(as_tuple=False), 4].max(0)[0]
+                        correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
+                        print("correct_predictions", correct_predictions)
+                        confs_slice[ci] = pred[pi][correct_predictions, 4].max(0)[0] if correct_predictions else torch.Tensor(0.0)
+                        print("confs_slice[ci]", confs_slice[ci])
                         correct_slice[ci] = correct[pi].max(0)[0]
+                        print("correct_slice[ci]", correct_slice[ci])
 
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
