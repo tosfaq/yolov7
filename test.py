@@ -109,6 +109,7 @@ def test(data,
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
     total_lowhu_removed = 0
+    stats_slice, stats_series = [], []
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -140,7 +141,7 @@ def test(data,
                 total_lowhu_removed += n_removed
 
 
-        # Statistics per image
+        # Statistics per image in current batch
         for si, pred in enumerate(out):
             labels = targets[targets[:, 0] == si, 1:]
             nl = len(labels)
@@ -151,6 +152,7 @@ def test(data,
             if len(pred) == 0:
                 if nl:
                     stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
+                    stats_slice.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
                 continue
 
             # Predictions
@@ -194,6 +196,12 @@ def test(data,
 
             # Assign all predictions as incorrect
             correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool, device=device)
+            # num_cls rows per image (i.e. slice)
+            num_cls = len(torch.unique(labels[:, 0]))
+            correct_slice = torch.zeros(num_cls, niou, dtype=torch.bool, device=device)
+            confs_slice = torch.zeros(num_cls)
+            pcls_slice = torch.unique(labels[:, 0])
+            tcls_slice = torch.unique(labels[:, 0])
             if nl:
                 detected = []  # target indices
                 tcls_tensor = labels[:, 0]
@@ -205,14 +213,15 @@ def test(data,
                     confusion_matrix.process_batch(predn, torch.cat((labels[:, 0:1], tbox), 1))
 
                 # Per target class
-                for cls in torch.unique(tcls_tensor):
-                    ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # prediction indices
-                    pi = (cls == pred[:, 5]).nonzero(as_tuple=False).view(-1)  # target indices
+                for ci, cls in enumerate(torch.unique(tcls_tensor)):
+                    ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # target indices
+                    pi = (cls == pred[:, 5]).nonzero(as_tuple=False).view(-1)  # prediction indices
 
                     # Search for detections
                     if pi.shape[0]:
                         # Prediction to target ious
                         ious, i = box_iou(predn[pi, :4], tbox[ti]).max(1)  # best ious, indices
+                        # ious has length of pi (number of predictions for cls in this image)
 
                         # Append detections
                         detected_set = set()
@@ -224,9 +233,13 @@ def test(data,
                                 correct[pi[j]] = ious[j] > iouv  # iou_thres is 1xn
                                 if len(detected) == nl:  # all targets already located in image
                                     break
+                        # choosing indices of correct predictions (with at least iouv[0])
+                        confs_slice[ci] = pred[pi][correct[pi].sum(1).nonzero(as_tuple=False), 4].max()
+                        correct_slice[ci] = correct[pi].max(0)[0]
 
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
+            stats_slice.append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice.cpu()))
 
         # Plot images
         if plots and batch_i < 3:
@@ -239,6 +252,14 @@ def test(data,
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
+    if len(stats_slice) and stats_slice[0].any():
+        p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'slice'), names=names)
+        ap50_slice, ap_slice = ap_slice[:, 0], ap_slice.mean(1)  # AP@0.5, AP@0.5:0.95
+        mp_slice, mr_slice, map50_slice, map_slice = p_slice.mean(), r_slice.mean(), ap50_slice.mean(), ap_slice.mean()
+        nt_slice = np.bincount(stats_slice[3].astype(np.int64), minlength=nc)  # number of targets per class
+    else:
+        nt_slice = torch.zeros(1)
+
     if len(stats) and stats[0].any():
         p, r, ap, f1, ap_class = ap_per_class(*stats, plot=plots, v5_metric=v5_metric, save_dir=save_dir, names=names)
         ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
@@ -251,10 +272,20 @@ def test(data,
     pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
 
+    # slice-level stats
+    print('Slice level')
+    print(pf % ('all', seen, nt_slice.sum(), mp_slice, mr_slice, map50_slice, map_slice))
+
     # Print results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
         for i, c in enumerate(ap_class):
             print(pf % (names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]))
+
+    # Print results per class for slices
+    if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats_slice):
+        print('Slice level')
+        for i, c in enumerate(ap_class_slice):
+            print(pf % (names[c], seen, nt_slice[c], p_slice[i], r_slice[i], ap50_slice[i], ap_slice[i]))
 
     # Print speeds
     t = tuple(x / seen * 1E3 for x in (t0, t1, t0 + t1)) + (imgsz, imgsz, batch_size)  # tuple
