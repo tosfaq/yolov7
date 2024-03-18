@@ -265,6 +265,7 @@ def test(data,
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
+    print("stats[0].shape", stats[0].shape)
     print("stats[0]", stats[0])
     stats_slice = [np.concatenate(x, 0) for x in zip(*stats_slice)]  # to numpy
     print("Stats_slice length", len(stats_slice))
