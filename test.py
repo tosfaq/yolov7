@@ -239,6 +239,7 @@ def test(data,
                         print("pi.shape", pi.shape)
                         print("pi", pi)
                         print("pred[pi]", pred[pi])
+                        print("correct", correct)
                         print("correct[pi]", correct[pi])
                         print("correct[pi].sum(1)", correct[pi].sum(1))
                         print("correct[pi].sum(1).nonzero(as_tuple=False)", correct[pi].sum(1).nonzero(as_tuple=False))
