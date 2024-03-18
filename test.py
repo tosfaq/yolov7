@@ -257,7 +257,7 @@ def test(data,
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
 
-            stats_slice.append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice.cpu()))
+            stats_slice.append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice))
 
         # Plot images
         if plots and batch_i < 3:
