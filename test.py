@@ -154,7 +154,7 @@ def test(data,
             nl = len(labels)
             tcls = labels[:, 0].tolist() if nl else []  # target class
             path = Path(paths[si])
-            folder_key = get_folder_key(str(path))
+            folder_key = get_folder_key(str(path.parent))
             seen += 1
 
             if len(pred) == 0:
