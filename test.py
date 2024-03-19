@@ -304,7 +304,7 @@ def test(data,
                         else torch.zeros(1)
                     print("correct[pi, :].shape", correct[pi, :].shape)
                     print("correct_series = correct[pi, :].max(0)[0].shape", correct[pi, :].max(0)[0].shape)
-                    correct_series = correct[pi, :].max(0)[0]
+                    correct_series = correct[pi, :].max(0)[0].unsqueeze(0)
 
                     tcls_series = torch.unique(tcls).tolist() if len(torch.unique(tcls)) else []
                     # Append statistics (correct, conf, pcls, tcls)
