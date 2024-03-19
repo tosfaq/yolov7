@@ -348,7 +348,10 @@ def remove_low_hu_detections(pred, img, thres_norm):
                 continue
             # REMOVE AFTER DEBUGGING
             # print("slice shape", img[i_img, 0, int(y1):int(y2), int(x1):int(x2)].shape)
-            max_val_inside = img[i_img, 0, int(y1):int(y2), int(x1):int(x2)].max()
+            try:
+                max_val_inside = img[i_img, 0, int(y1):int(y2), int(x1):int(x2)].max()
+            except:
+                print('y1', int(y1), 'y2', int(y2), 'x1', int(x1), 'x2', int(x2))
             if max_val_inside < thres_norm:  # box has low HU values
                 indices_to_remove.append(i_det)
         mask[indices_to_remove] = False
