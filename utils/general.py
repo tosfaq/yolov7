@@ -343,7 +343,7 @@ def remove_low_hu_detections(pred, img, thres_norm):
         mask = torch.ones(det.shape[0], dtype=torch.bool)
         for i_det, (*xyxy, conf, cls) in enumerate(det):
             x1, y1, x2, y2 = xyxy
-            if abs(x1-x2) == 0 or abs(y1-y2) == 0:
+            if abs(x1-x2) < 2 or abs(y1-y2) < 2:
                 indices_to_remove.append(i_det)
                 continue
             # REMOVE AFTER DEBUGGING
