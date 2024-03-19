@@ -307,7 +307,11 @@ def test(data,
                         print("ZERO SHAPE")
                         print((correct_series, conf_series, cls, tcls_series))
     #print("stats_series_dict", stats_series_dict)
-    stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
+    for ii, x in enumerate(zip(*stats_series)):
+        print("Going through", ii)
+        stats_series.append(np.concatenate(x, 0))
+
+    #stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
     print("stats_series[0].shape (correct)", stats_series[0].shape)
     print("stats_series[1].shape (conf)", stats_series[1].shape)
     print("stats_series[2].shape (pcls)", stats_series[2].shape)
