@@ -452,11 +452,13 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.label_files = img2label_paths(self.img_files)  # labels
         cache_path = (p if p.is_file() else Path(self.label_files[0]).parent).with_suffix('.cache')  # cached labels
         cache_path = Path(cache_folder) / os.sep.join(str(cache_path).split(os.sep)[-2:]) # store in local folder
+
         if cache_path.is_file():
             cache, exists = torch.load(cache_path), True  # load
             #if cache['hash'] != get_hash(self.label_files + self.img_files) or 'version' not in cache:  # changed
             #    cache, exists = self.cache_labels(cache_path, prefix), False  # re-cache
         else:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
             cache, exists = self.cache_labels(cache_path, prefix), False  # cache
 
         # Display cache
