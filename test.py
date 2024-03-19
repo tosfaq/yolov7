@@ -290,7 +290,9 @@ def test(data,
     print("    seen    ", seen)
 
     stats_series = []
+    print("Dict total len", len(stats_series_dict))
     for k, slices in stats_series_dict.items():
+        print(f"    [{k}]", len(slices))
         correct, confs, pcls, tcls = [torch.from_numpy(np.concatenate(x, 0)) for x in zip(*slices)]
         if len(tcls):
             for ci, cls in enumerate(torch.unique(tcls)):
