@@ -297,7 +297,7 @@ def test(data,
                 pi = (cls == pcls).nonzero(as_tuple=False).view(-1)  # prediction indices
                 if pi.shape[0]:
                     correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
-                    correct_series = correct[pi].max(0)[0]
+                    correct_series = correct[pi, :].max(0)[0]
                     conf_series = confs[pi][correct_predictions].max(0)[0] if len(correct_predictions) else torch.zeros(1)
                     tcls_series = torch.unique(tcls).tolist()
                     tcls_series = torch.unique(tcls).tolist() if len(torch.unique(tcls)) else []
