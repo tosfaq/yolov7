@@ -302,7 +302,10 @@ def test(data,
                     tcls_series = torch.unique(tcls).tolist()
                     # Append statistics (correct, conf, pcls, tcls)
                     stats_series.append((correct_series, conf_series, cls, tcls_series))
-    print("stats_series_dict", stats_series_dict)
+                    if (correct_series.shape == 0).any() or (conf_series.shape == 0).any() or (cls.shape == 0).any() or (tcls_series.shape == 0).any():
+                        print("ZERO SHAPE")
+                        print((correct_series, conf_series, cls, tcls_series))
+    #print("stats_series_dict", stats_series_dict)
     stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
     print("stats_series[0].shape (correct)", stats_series[0].shape)
     print("stats_series[1].shape (conf)", stats_series[1].shape)
