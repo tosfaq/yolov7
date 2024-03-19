@@ -301,7 +301,7 @@ def test(data,
                     conf_series = confs[pi][correct_predictions].max(0)[0] if len(correct_predictions) else torch.zeros(1)
                     tcls_series = torch.unique(tcls).tolist()
                     # Append statistics (correct, conf, pcls, tcls)
-                    stats_series.append((correct_series, conf_series, torch.Tensor([cls]), tcls_series))
+                    stats_series.append((correct_series, conf_series, cls, tcls_series))
     print("stats_series_dict", stats_series_dict)
     stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
     print("stats_series[0].shape (correct)", stats_series[0].shape)
