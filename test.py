@@ -309,6 +309,8 @@ def test(data,
     #print("stats_series_dict", stats_series_dict)
     for ii, x in enumerate(zip(*stats_series)):
         print("Going through", ii)
+        if ii == 1 or ii == 2:
+            print(x)
         stats_series.append(np.concatenate(x, 0))
 
     #stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
