@@ -291,7 +291,7 @@ def test(data,
 
     stats_series = []
     for k, slices in stats_series_dict.items():
-        correct, confs, pcls, tcls = [torch.cat(x, 0) for x in zip(*slices)]
+        correct, confs, pcls, tcls = [torch.from_numpy(np.concatenate(x, 0)) for x in zip(*slices)]
         if len(tcls):
             for ci, cls in enumerate(torch.unique(tcls)):
                 pi = (cls == pcls).nonzero(as_tuple=False).view(-1)  # prediction indices
