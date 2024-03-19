@@ -256,10 +256,10 @@ def test(data,
                         #print("correct_predictions", correct_predictions)
                         confs_slice[ci] = pred[pi][correct_predictions, 4].max(0)[0] if len(correct_predictions) else torch.zeros(1)
                         correct_slice[ci] = correct[pi].max(0)[0]
-                        print("correct_slice[ci]", correct_slice[ci])
-                        print("confs_slice[ci]", confs_slice[ci])
-                        print("pcls_slice", pcls_slice)
-                        print("tcls_slice", tcls_slice)
+                        #print("correct_slice[ci]", correct_slice[ci])
+                        #print("confs_slice[ci]", confs_slice[ci])
+                        #print("pcls_slice", pcls_slice)
+                        #print("tcls_slice", tcls_slice)
 
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
