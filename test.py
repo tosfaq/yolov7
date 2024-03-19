@@ -302,7 +302,7 @@ def test(data,
                     tcls_series = torch.unique(tcls).tolist()
                     # Append statistics (correct, conf, pcls, tcls)
                     stats_series.append((correct_series, conf_series, cls, tcls_series))
-                    if (correct_series.shape == 0).any() or (conf_series.shape == 0) or (cls.shape == 0) or (tcls_series.shape == 0):
+                    if (correct_series.shape == 0) or (conf_series.shape == 0) or (cls.shape == 0) or (tcls_series.shape == 0):
                         print("ZERO SHAPE")
                         print((correct_series, conf_series, cls, tcls_series))
     #print("stats_series_dict", stats_series_dict)
