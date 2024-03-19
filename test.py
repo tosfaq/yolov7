@@ -293,7 +293,7 @@ def test(data,
     for k, slices in stats_series_dict.items():
         correct, confs, pcls, tcls = [np.concatenate(x, 0) for x in zip(*slices)]
         if len(tcls):
-            for ci, cls in enumerate(tcls.unique()):
+            for ci, cls in enumerate(np.unique(tcls)):
                 pi = (cls == pcls).nonzero(as_tuple=False).view(-1)  # prediction indices
                 if pi.shape[0]:
                     correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
