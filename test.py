@@ -292,7 +292,7 @@ def test(data,
     stats_series = []
     for k, slices in stats_series_dict.items():
         correct, confs, pcls, tcls = [np.concatenate(x, 0) for x in zip(*slices)]
-        if tcls:
+        if len(tcls):
             for ci, cls in enumerate(torch.unique(tcls)):
                 pi = (cls == pcls).nonzero(as_tuple=False).view(-1)  # prediction indices
                 if pi.shape[0]:
@@ -302,7 +302,7 @@ def test(data,
                     tcls_series = torch.unique(tcls).tolist()
                     # Append statistics (correct, conf, pcls, tcls)
                     stats_series.append((correct_series, conf_series, torch.Tensor([cls]), tcls_series))
-
+    print("stats_series_dict", stats_series_dict)
     stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
     print("stats_series[0].shape (correct)", stats_series[0].shape)
     print("stats_series[1].shape (conf)", stats_series[1].shape)
