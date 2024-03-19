@@ -30,6 +30,13 @@ cv2.setNumThreads(0)  # prevent OpenCV from multithreading (incompatible with Py
 os.environ['NUMEXPR_MAX_THREADS'] = str(min(os.cpu_count(), 8))  # NumExpr max threads
 
 
+def get_folder_key(path: str, last_n=5, short=False, short_cut=3, preserve_npy=True):
+    """
+    Function returns key for a specific folder path (last_n folders in path, preserves npy by default)
+    """
+    return os.sep.join(path.split(os.sep)[-last_n:-short_cut if short else None]) if 'npy' not in path else \
+           os.sep.join(path.split(os.sep)[-last_n-1:-(short_cut+1) if short else (-1 if not preserve_npy else None)])
+
 def set_logging(rank=-1):
     logging.basicConfig(
         format="%(message)s",
@@ -525,7 +532,7 @@ def box_giou(box1, box2):
 
     area1 = box_area(box1.T)
     area2 = box_area(box2.T)
-    
+
     inter = (torch.min(box1[:, None, 2:], box2[:, 2:]) - torch.max(box1[:, None, :2], box2[:, :2])).clamp(0).prod(2)
     union = (area1[:, None] + area2 - inter)
 
@@ -560,7 +567,7 @@ def box_ciou(box1, box2, eps: float = 1e-7):
 
     area1 = box_area(box1.T)
     area2 = box_area(box2.T)
-    
+
     inter = (torch.min(box1[:, None, 2:], box2[:, 2:]) - torch.max(box1[:, None, :2], box2[:, :2])).clamp(0).prod(2)
     union = (area1[:, None] + area2 - inter)
 
@@ -612,7 +619,7 @@ def box_diou(box1, box2, eps: float = 1e-7):
 
     area1 = box_area(box1.T)
     area2 = box_area(box2.T)
-    
+
     inter = (torch.min(box1[:, None, 2:], box2[:, 2:]) - torch.max(box1[:, None, :2], box2[:, :2])).clamp(0).prod(2)
     union = (area1[:, None] + area2 - inter)
 

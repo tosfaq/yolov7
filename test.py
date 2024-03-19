@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 from threading import Thread
+from collections import defaultdict
 
 import numpy as np
 import torch
@@ -12,7 +13,8 @@ from tqdm import tqdm
 from models.experimental import attempt_load
 from utils.datasets import create_dataloader, dicom2rgb, standardize_image, unstandardize_image
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, check_requirements, \
-    box_iou, non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path, colorstr, remove_low_hu_detections
+    box_iou, non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path, colorstr, \
+    remove_low_hu_detections, get_folder_key
 from utils.metrics import ap_per_class, ConfusionMatrix
 from utils.plots import plot_images, output_to_target, plot_study_txt
 from utils.torch_utils import select_device, time_synchronized, TracedModel
@@ -58,6 +60,7 @@ def test(data,
         save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
         (save_dir / 'slice').mkdir(parents=True, exist_ok=True)  # make dir for slice stats
+        (save_dir / 'series').mkdir(parents=True, exist_ok=True)  # make dir for series stats
 
         # Load model
         model = attempt_load(weights, map_location=device)  # load FP32 model
@@ -106,11 +109,12 @@ def test(data,
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     coco91class = coco80_to_coco91_class()
     s = ('%20s' + '%12s' * 6) % ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95')
-    p, r, f1, mp, mr, map50, map, t0, t1 = 0., 0., 0., 0., 0., 0., 0., 0., 0.
+    p, r, f1, mp, mr, map50, map, t0, t1, t2 = 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
     total_lowhu_removed = 0
-    stats_slice, stats_series = [], []
+    stats_slice = []
+    stats_series_dict = defaultdict(list)
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -137,9 +141,11 @@ def test(data,
             t1 += time_synchronized() - t
 
             # Remove detections with low HU values
+            t = time_synchronized()
             if opt.nolowhu:
                 n_removed = remove_low_hu_detections(out, img, hu_thres_norm)
                 total_lowhu_removed += n_removed
+            t2 += time_synchronized() - t
 
 
         # Statistics per image in current batch
@@ -148,6 +154,7 @@ def test(data,
             nl = len(labels)
             tcls = labels[:, 0].tolist() if nl else []  # target class
             path = Path(paths[si])
+            folder_key = get_folder_key(str(path))
             seen += 1
 
             if len(pred) == 0:
@@ -258,6 +265,7 @@ def test(data,
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
 
             stats_slice.append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice))
+            stats_series_dict[folder_key].append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice))
 
         # Plot images
         if plots and batch_i < 3:
@@ -279,16 +287,27 @@ def test(data,
     print("stats_slice[1].shape (conf)", stats_slice[1].shape)
     print("stats_slice[2].shape (pcls)", stats_slice[2].shape)
     print("stats_slice[3].shape (tcls)", stats_slice[3].shape)
-
     print("    seen    ", seen)
 
-    if len(stats_slice) and stats_slice[0].any():
-        p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'slice'), names=names)
-        ap50_slice, ap_slice = ap_slice[:, 0], ap_slice.mean(1)  # AP@0.5, AP@0.5:0.95
-        mp_slice, mr_slice, map50_slice, map_slice = p_slice.mean(), r_slice.mean(), ap50_slice.mean(), ap_slice.mean()
-        nt_slice = np.bincount(stats_slice[3].astype(np.int64), minlength=nc)  # number of targets per class
-    else:
-        nt_slice = torch.zeros(1)
+    stats_series = []
+    for k, slices in stats_series_dict.items():
+        correct, confs, pcls, tcls = [np.concatenate(x, 0) for x in zip(*slices)]
+        if tcls:
+            for ci, cls in enumerate(torch.unique(tcls)):
+                pi = (cls == pcls).nonzero(as_tuple=False).view(-1)  # prediction indices
+                if pi.shape[0]:
+                    correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
+                    correct_series = correct[pi].max(0)[0]
+                    conf_series = confs[pi][correct_predictions].max(0)[0] if len(correct_predictions) else torch.zeros(1)
+                    tcls_series = torch.unique(tcls).tolist()
+                    # Append statistics (correct, conf, pcls, tcls)
+                    stats_series.append((correct_series, conf_series, torch.Tensor([cls]), tcls_series))
+
+    stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
+    print("stats_series[0].shape (correct)", stats_series[0].shape)
+    print("stats_series[1].shape (conf)", stats_series[1].shape)
+    print("stats_series[2].shape (pcls)", stats_series[2].shape)
+    print("stats_series[3].shape (tcls)", stats_series[3].shape)
 
     if len(stats) and stats[0].any():
         p, r, ap, f1, ap_class = ap_per_class(*stats, plot=plots, v5_metric=v5_metric, save_dir=save_dir, names=names)
@@ -298,6 +317,22 @@ def test(data,
     else:
         nt = torch.zeros(1)
 
+    if len(stats_slice) and stats_slice[0].any():
+        p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'slice'), names=names)
+        ap50_slice, ap_slice = ap_slice[:, 0], ap_slice.mean(1)  # AP@0.5, AP@0.5:0.95
+        mp_slice, mr_slice, map50_slice, map_slice = p_slice.mean(), r_slice.mean(), ap50_slice.mean(), ap_slice.mean()
+        nt_slice = np.bincount(stats_slice[3].astype(np.int64), minlength=nc)  # number of targets per class
+    else:
+        nt_slice = torch.zeros(1)
+
+    if len(stats_series) and stats_series[0].any():
+        p_series, r_series, ap_series, f1_series, ap_class_series = ap_per_class(*stats_series, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'series'), names=names)
+        ap50_series, ap_series = ap_series[:, 0], ap_series.mean(1)  # AP@0.5, AP@0.5:0.95
+        mp_series, mr_series, map50_series, map_series = p_series.mean(), r_series.mean(), ap50_series.mean(), ap_series.mean()
+        nt_series = np.bincount(stats_series[3].astype(np.int64), minlength=nc)  # number of targets per class
+    else:
+        nt_series = torch.zeros(1)
+
     # Print results
     pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
@@ -305,6 +340,10 @@ def test(data,
     # slice-level stats
     print('Slice level')
     print(pf % ('all', seen, nt_slice.sum(), mp_slice, mr_slice, map50_slice, map_slice))
+
+    # series-level stats
+    print('Series level')
+    print(pf % ('all', len(stats_series_dict), nt_series.sum(), mp_series, mr_series, map50_series, map_series))
 
     # Print results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
@@ -318,9 +357,9 @@ def test(data,
             print(pf % (names[c], seen, nt_slice[c], p_slice[i], r_slice[i], ap50_slice[i], ap_slice[i]))
 
     # Print speeds
-    t = tuple(x / seen * 1E3 for x in (t0, t1, t0 + t1)) + (imgsz, imgsz, batch_size)  # tuple
+    t = tuple(x / seen * 1E3 for x in (t0, t1, t2, t0 + t1 + t2)) + (imgsz, imgsz, batch_size)  # tuple
     if not training:
-        print('Speed: %.1f/%.1f/%.1f ms inference/NMS/total per %gx%g image at batch-size %g' % t)
+        print('Speed: %.1f/%.1f/%.1f/%.1f ms inference/NMS/nolowhu/total per %gx%g image at batch-size %g' % t)
         if opt.nolowhu:
             print("Removed", total_lowhu_removed, "detections with HU lower than", opt.hu_thres)
 
