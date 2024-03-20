@@ -45,20 +45,33 @@ def ap_per_class(tp, conf, pred_cls, target_cls, v5_metric=False, plot=False, sa
         n_l = (target_cls == c).sum()  # number of labels
         n_p = i.sum()  # number of predictions
 
+        print(f'number of predictions={n_p}; number of labels={n_l}')
         if n_p == 0 or n_l == 0:
             continue
         else:
             # Accumulate FPs and TPs
             fpc = (1 - tp[i]).cumsum(0)
             tpc = tp[i].cumsum(0)
+            print("fpc")
+            print(fpc)
+            print("tpc")
+            print(tpc)
 
             # Recall
             recall = tpc / (n_l + 1e-16)  # recall curve
             r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
+            print("recall")
+            print(recall)
+            print("r[ci]")
+            print(r[ci])
 
             # Precision
             precision = tpc / (tpc + fpc)  # precision curve
             p[ci] = np.interp(-px, -conf[i], precision[:, 0], left=1)  # p at pr_score
+            print("precision")
+            print(precision)
+            print("p[ci]")
+            print(p[ci])
 
             # AP from recall-precision curve
             for j in range(tp.shape[1]):
