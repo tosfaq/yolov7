@@ -115,6 +115,7 @@ def test(data,
     total_lowhu_removed = 0
     stats_slice = []
     stats_series_dict = defaultdict(list)
+    clean_series_dict = set()
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -161,6 +162,7 @@ def test(data,
                 if nl:
                     stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
                     stats_slice.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
+                    clean_series_dict.add(folder_key)
                 continue
 
             # Predictions
@@ -325,6 +327,10 @@ def test(data,
     print("stats_series[2].shape (pcls)", stats_series[2].shape)
     print("stats_series[3].shape (tcls)", stats_series[3].shape)
 
+    # Print results
+    pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
+
+    print('Box level')
     if len(stats) and stats[0].any():
         p, r, ap, f1, ap_class = ap_per_class(*stats, plot=plots, v5_metric=v5_metric, save_dir=save_dir, names=names)
         ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
@@ -332,7 +338,9 @@ def test(data,
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt = torch.zeros(1)
+    print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
 
+    print('Slice level')
     if len(stats_slice) and stats_slice[0].any():
         p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'slice'), names=names)
         ap50_slice, ap_slice = ap_slice[:, 0], ap_slice.mean(1)  # AP@0.5, AP@0.5:0.95
@@ -340,7 +348,9 @@ def test(data,
         nt_slice = np.bincount(stats_slice[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt_slice = torch.zeros(1)
+    print(pf % ('all', seen, nt_slice.sum(), mp_slice, mr_slice, map50_slice, map_slice))
 
+    print('Series level')
     if len(stats_series) and stats_series[0].any():
         p_series, r_series, ap_series, f1_series, ap_class_series = ap_per_class(*stats_series, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'series'), names=names)
         ap50_series, ap_series = ap_series[:, 0], ap_series.mean(1)  # AP@0.5, AP@0.5:0.95
@@ -348,21 +358,12 @@ def test(data,
         nt_series = np.bincount(stats_series[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt_series = torch.zeros(1)
-
-    # Print results
-    pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
-    print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
-
-    # slice-level stats
-    print('Slice level')
-    print(pf % ('all', seen, nt_slice.sum(), mp_slice, mr_slice, map50_slice, map_slice))
-
-    # series-level stats
-    print('Series level')
-    print(pf % ('all', len(stats_series_dict), nt_series.sum(), mp_series, mr_series, map50_series, map_series))
+    total_series = len(set(stats_series_dict.keys()).union(clean_series_dict))
+    print(pf % ('all', total_series, nt_series.sum(), mp_series, mr_series, map50_series, map_series))
 
     # Print results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
+        print('Box level')
         for i, c in enumerate(ap_class):
             print(pf % (names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]))
 
@@ -371,6 +372,12 @@ def test(data,
         print('Slice level')
         for i, c in enumerate(ap_class_slice):
             print(pf % (names[c], seen, nt_slice[c], p_slice[i], r_slice[i], ap50_slice[i], ap_slice[i]))
+
+    # Print results per class for series
+    if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats_series):
+        print('Series level')
+        for i, c in enumerate(ap_class_slice):
+            print(pf % (names[c], total_series, nt_series[c], p_series[i], r_series[i], ap50_series[i], ap_series[i]))
 
     # Print speeds
     t = tuple(x / seen * 1E3 for x in (t0, t1, t2, t0 + t1 + t2)) + (imgsz, imgsz, batch_size)  # tuple
