@@ -109,7 +109,10 @@ def test(data,
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     coco91class = coco80_to_coco91_class()
     s = ('%20s' + '%12s' * 6) % ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95')
-    p, r, f1, mp, mr, map50, map, t0, t1, t2 = 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.
+    p, r, f1, mp, mr, map50, map = 0., 0., 0., 0., 0., 0., 0.
+    p_slice, r_slice, f1_slice, mp_slice, mr_slice, map50_slice, map_slice = 0., 0., 0., 0., 0., 0., 0.
+    p_series, r_series, f1_series, mp_series, mr_series, map50_series, map_series = 0., 0., 0., 0., 0., 0., 0.
+    t0, t1, t2 = 0., 0., 0.
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
     total_lowhu_removed = 0
