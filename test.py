@@ -345,7 +345,7 @@ def test(data,
 
     print('Slice level')
     if len(stats_slice) and stats_slice[0].any():
-        p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'slice'), names=names)
+        p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=(save_dir / 'slice'), names=names)
         ap50_slice, ap_slice = ap_slice[:, 0], ap_slice.mean(1)  # AP@0.5, AP@0.5:0.95
         mp_slice, mr_slice, map50_slice, map_slice = p_slice.mean(), r_slice.mean(), ap50_slice.mean(), ap_slice.mean()
         nt_slice = np.bincount(stats_slice[3].astype(np.int64), minlength=nc)  # number of targets per class
@@ -355,7 +355,7 @@ def test(data,
 
     print('Series level')
     if len(stats_series) and stats_series[0].any():
-        p_series, r_series, ap_series, f1_series, ap_class_series = ap_per_class(*stats_series, plot=plots, v5_metric=v5_metric, save_dir=os.path.join(save_dir, 'series'), names=names)
+        p_series, r_series, ap_series, f1_series, ap_class_series = ap_per_class(*stats_series, plot=plots, v5_metric=v5_metric, save_dir=(save_dir / 'series'), names=names)
         ap50_series, ap_series = ap_series[:, 0], ap_series.mean(1)  # AP@0.5, AP@0.5:0.95
         mp_series, mr_series, map50_series, map_series = p_series.mean(), r_series.mean(), ap50_series.mean(), ap_series.mean()
         nt_series = np.bincount(stats_series[3].astype(np.int64), minlength=nc)  # number of targets per class
