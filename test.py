@@ -59,8 +59,7 @@ def test(data,
         # Directories
         save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
-        (save_dir / 'slice').mkdir(parents=True, exist_ok=True)  # make dir for slice stats
-        (save_dir / 'series').mkdir(parents=True, exist_ok=True)  # make dir for series stats
+
 
         # Load model
         model = attempt_load(weights, map_location=device)  # load FP32 model
@@ -69,6 +68,9 @@ def test(data,
         
         if trace:
             model = TracedModel(model, device, imgsz)
+
+    (save_dir / 'slice').mkdir(parents=True, exist_ok=True)  # make dir for slice stats
+    (save_dir / 'series').mkdir(parents=True, exist_ok=True)  # make dir for series stats
 
     # Half
     half = device.type != 'cpu' and half_precision  # half precision only supported on CUDA
