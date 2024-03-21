@@ -46,25 +46,26 @@ def ap_per_class(tp, conf, pred_cls, target_cls, v5_metric=False, plot=False, sa
         n_p = i.sum()  # number of predictions
 
         print(f'number of predictions={n_p}; number of labels={n_l}')
+        print('Results for IoU=0.5 and lowest conf thr: ', end='')
         if n_p == 0 or n_l == 0:
             continue
         else:
             # Accumulate FPs and TPs
             fpc = (1 - tp[i]).cumsum(0)
             tpc = tp[i].cumsum(0)
-            print("FP for iou 0.5 and lowest conf thr:", fpc[-1, 0])
-            print("TP for iou 0.5 and lowest conf thr:", tpc[-1, 0])
-            print("FN for iou 0.5 and lowest conf thr:", n_l - tpc[-1, 0])
+            print("FP:", "%5i" % fpc[-1, 0], end=";")
+            print("TP:", "%5i" % tpc[-1, 0], end=";")
+            print("FN:", "%5i" % (n_l - tpc[-1, 0]), end=";")
 
             # Recall
             recall = tpc / (n_l + 1e-16)  # recall curve
             r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
-            print("recall for iou 0.5 and lowest conf thr:", "%.3f" % recall[-1, 0])
+            print("Recall:", "%5.3f" % recall[-1, 0], end=";")
 
             # Precision
             precision = tpc / (tpc + fpc)  # precision curve
             p[ci] = np.interp(-px, -conf[i], precision[:, 0], left=1)  # p at pr_score
-            print("precision for iou 0.5 and lowest conf thr:", "%.3f" % precision[-1, 0])
+            print("Precision:", "%5.3f" % precision[-1, 0])
 
             # AP from recall-precision curve
             for j in range(tp.shape[1]):

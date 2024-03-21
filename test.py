@@ -115,7 +115,7 @@ def test(data,
     total_lowhu_removed = 0
     stats_slice = []
     stats_series_dict = defaultdict(list)
-    clean_series_dict = set()
+    all_series = set()
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -157,12 +157,12 @@ def test(data,
             path = Path(paths[si])
             folder_key = get_folder_key(str(path.parent))
             seen += 1
+            all_series.add(folder_key)
 
             if len(pred) == 0:
                 if nl:
                     stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
                     stats_slice.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
-                    clean_series_dict.add(folder_key)
                 continue
 
             # Predictions
@@ -280,16 +280,16 @@ def test(data,
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
-    print("stats[0].shape (correct)", stats[0].shape)
-    print("stats[1].shape (conf)", stats[1].shape)
-    print("stats[2].shape (pcls)", stats[2].shape)
-    print("stats[3].shape (tcls)", stats[3].shape)
+    #print("stats[0].shape (correct)", stats[0].shape)
+    #print("stats[1].shape (conf)", stats[1].shape)
+    #print("stats[2].shape (pcls)", stats[2].shape)
+    #print("stats[3].shape (tcls)", stats[3].shape)
     stats_slice = [np.concatenate(x, 0) for x in zip(*stats_slice)]  # to numpy
-    print("stats_slice[0].shape (correct)", stats_slice[0].shape)
-    print("stats_slice[1].shape (conf)", stats_slice[1].shape)
-    print("stats_slice[2].shape (pcls)", stats_slice[2].shape)
-    print("stats_slice[3].shape (tcls)", stats_slice[3].shape)
-    print("    seen    ", seen)
+    #print("stats_slice[0].shape (correct)", stats_slice[0].shape)
+    #print("stats_slice[1].shape (conf)", stats_slice[1].shape)
+    #print("stats_slice[2].shape (pcls)", stats_slice[2].shape)
+    #print("stats_slice[3].shape (tcls)", stats_slice[3].shape)
+    #print("    seen    ", seen)
 
     stats_series = []
     #print("Dict total len", len(stats_series_dict))
@@ -322,10 +322,10 @@ def test(data,
     #    stats_series.append(np.concatenate(x, 0))
 
     stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
-    print("stats_series[0].shape (correct)", stats_series[0].shape)
-    print("stats_series[1].shape (conf)", stats_series[1].shape)
-    print("stats_series[2].shape (pcls)", stats_series[2].shape)
-    print("stats_series[3].shape (tcls)", stats_series[3].shape)
+    #print("stats_series[0].shape (correct)", stats_series[0].shape)
+    #print("stats_series[1].shape (conf)", stats_series[1].shape)
+    #print("stats_series[2].shape (pcls)", stats_series[2].shape)
+    #print("stats_series[3].shape (tcls)", stats_series[3].shape)
 
     # Print results
     pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
@@ -358,10 +358,10 @@ def test(data,
         nt_series = np.bincount(stats_series[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt_series = torch.zeros(1)
-    total_series = len(set(stats_series_dict.keys()).union(clean_series_dict))
+    total_series = len(all_series)
     print(pf % ('all', total_series, nt_series.sum(), mp_series, mr_series, map50_series, map_series))
 
-    # Print results per class
+    # Print results per class for boxes
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
         print('Box level')
         for i, c in enumerate(ap_class):
