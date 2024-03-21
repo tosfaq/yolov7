@@ -53,14 +53,14 @@ def ap_per_class(tp, conf, pred_cls, target_cls, v5_metric=False, plot=False, sa
             # Accumulate FPs and TPs
             fpc = (1 - tp[i]).cumsum(0)
             tpc = tp[i].cumsum(0)
-            print("FP:", "%5i" % fpc[-1, 0], end=";")
-            print("TP:", "%5i" % tpc[-1, 0], end=";")
-            print("FN:", "%5i" % (n_l - tpc[-1, 0]), end=";")
+            print("FP:", "%5i" % fpc[-1, 0], end="; ")
+            print("TP:", "%5i" % tpc[-1, 0], end="; ")
+            print("FN:", "%5i" % (n_l - tpc[-1, 0]), end="; ")
 
             # Recall
             recall = tpc / (n_l + 1e-16)  # recall curve
             r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
-            print("Recall:", "%5.3f" % recall[-1, 0], end=";")
+            print("Recall:", "%5.3f" % recall[-1, 0], end="; ")
 
             # Precision
             precision = tpc / (tpc + fpc)  # precision curve
