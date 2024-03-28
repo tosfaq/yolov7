@@ -149,7 +149,7 @@ def test(data,
             # Remove detections with low HU values
             t = time_synchronized()
             if opt.nolowhu:
-                n_removed = remove_low_hu_detections(out, img, hu_thres_norm)
+                n_removed = remove_low_hu_detections(out, img, hu_thres_norm, paths)
                 total_lowhu_removed += n_removed
             t2 += time_synchronized() - t
 

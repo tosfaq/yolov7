@@ -324,7 +324,7 @@ def resample_segments(segments, n=1000):
     return segments
 
 
-def remove_low_hu_detections(pred, img, thres_norm):
+def remove_low_hu_detections(pred, img, thres_norm, paths=None):
     """ Removes inplace detections with low HU from pred
 
     Args:
@@ -335,6 +335,8 @@ def remove_low_hu_detections(pred, img, thres_norm):
             (shape N_batch x 1 x height x width)
         thres_norm:
             Normalised HU value ( (hu_thres - mean) / std )
+        paths:
+            Paths of the images
 
     """
     total = 0
@@ -351,6 +353,8 @@ def remove_low_hu_detections(pred, img, thres_norm):
             try:
                 max_val_inside = img[i_img, 0, int(y1):int(y2), int(x1):int(x2)].max()
             except:
+                if paths is not None:
+                    print('Problem with image', paths[i_img])
                 print('y1', int(y1), 'y2', int(y2), 'x1', int(x1), 'x2', int(x2))
             if max_val_inside < thres_norm:  # box has low HU values
                 indices_to_remove.append(i_det)
