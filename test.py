@@ -332,6 +332,10 @@ def test(data,
     #    stats_series.append(np.concatenate(x, 0))
 
     stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
+    print("stats_series[0] (correct)", stats_series[0])
+    print("stats_series[1] (conf)", stats_series[1])
+    print("stats_series[2] (pcls)", stats_series[2])
+    print("stats_series[3] (tcls)", stats_series[3])
     #print("stats_series[0].shape (correct)", stats_series[0].shape)
     #print("stats_series[1].shape (conf)", stats_series[1].shape)
     #print("stats_series[2].shape (pcls)", stats_series[2].shape)
