@@ -66,6 +66,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, v5_metric=False, plot=False, sa
             precision = tpc / (tpc + fpc)  # precision curve
             p[ci] = np.interp(-px, -conf[i], precision[:, 0], left=1)  # p at pr_score
             print("Precision:", "%5.3f" % precision[-1, 0])
+            print("Precision vector", p[ci].tolist())
 
             # AP from recall-precision curve
             for j in range(tp.shape[1]):
