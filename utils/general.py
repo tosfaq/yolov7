@@ -343,9 +343,11 @@ def remove_low_hu_detections(pred, img, thres_norm, paths=None):
     for i_img, det in enumerate(pred):  # detections per image
         indices_to_remove = []
         mask = torch.ones(det.shape[0], dtype=torch.bool)
-        for i_det, (*xyxy, conf, cls) in enumerate(det):
+        detn = det.clone()
+        clip_coords(detn, img.shape[2:])
+        for i_det, (*xyxy, conf, cls) in enumerate(detn):
             x1, y1, x2, y2 = xyxy
-            if abs(x1-x2) < 2 or abs(y1-y2) < 2 or x1 < 0 or x2 < 0 or y1 < 0 or y2 < 0:
+            if abs(x1-x2) < 2 or abs(y1-y2) < 2:
                 indices_to_remove.append(i_det)
                 continue
             # REMOVE AFTER DEBUGGING
@@ -359,7 +361,7 @@ def remove_low_hu_detections(pred, img, thres_norm, paths=None):
             if max_val_inside < thres_norm:  # box has low HU values
                 indices_to_remove.append(i_det)
         mask[indices_to_remove] = False
-        pred[i_img] = det[mask]
+        pred[i_img] = detn[mask]
         total += len(indices_to_remove)
     return total
 
