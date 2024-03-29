@@ -82,6 +82,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, v5_metric=False, plot=False, sa
         plot_mc_curve(px, r, Path(save_dir) / 'R_curve.png', names, ylabel='Recall')
 
     i = f1.mean(0).argmax()  # max F1 index
+    print(f"results below at conf_thr={px[i]:.3f}")
     return p[:, i], r[:, i], ap, f1[:, i], unique_classes.astype('int32')
 
 
