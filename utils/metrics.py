@@ -9,6 +9,34 @@ import torch
 from . import general
 
 
+def shrink_list(lst):
+    if not lst:  # If the list is empty, return an empty string
+        return "[]"
+
+    result = []  # To store the modified list
+    current = lst[0]
+    count = 1
+
+    for i in range(1, len(lst)):
+        if lst[i] == current:
+            count += 1
+        else:
+            # If count > 1, append in the "3x2" format, otherwise just append the number
+            if count > 1:
+                result.append(f"{current}x{count}")
+            else:
+                result.append(str(current))
+            current = lst[i]
+            count = 1
+
+    # Handle the last group/number
+    if count > 1:
+        result.append(f"{current}x{count}")
+    else:
+        result.append(str(current))
+
+    return "[" + ", ".join(result) + "]"
+
 def fitness(x):
     # Model fitness as a weighted combination of metrics
     w = [0.0, 0.0, 0.1, 0.9]  # weights for [P, R, mAP@0.5, mAP@0.5:0.95]
@@ -55,18 +83,21 @@ def ap_per_class(tp, conf, pred_cls, target_cls, v5_metric=False, plot=False, sa
             tpc = tp[i].cumsum(0)
             print("FP:", "%5i" % fpc[-1, 0], end="; ")
             print("TP:", "%5i" % tpc[-1, 0], end="; ")
-            print("FN:", "%5i" % (n_l - tpc[-1, 0]), end="; ")
+            print("FN:", "%5i" % (n_l - tpc[-1, 0]))
 
             # Recall
             recall = tpc / (n_l + 1e-16)  # recall curve
             r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
             print("Recall:", "%5.3f" % recall[-1, 0], end="; ")
+            print("Recall vector", shrink_list([f"{i:.2f}" for i in r[ci].tolist()]))
+
 
             # Precision
             precision = tpc / (tpc + fpc)  # precision curve
             p[ci] = np.interp(-px, -conf[i], precision[:, 0], left=1)  # p at pr_score
-            print("Precision:", "%5.3f" % precision[-1, 0])
-            print("Precision vector", p[ci].tolist())
+            print("Precision:", "%5.3f" % precision[-1, 0], end="; ")
+            print("Precision vector", shrink_list([f"{i:.2f}" for i in p[ci].tolist()]))
+
 
             # AP from recall-precision curve
             for j in range(tp.shape[1]):
