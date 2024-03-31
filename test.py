@@ -14,7 +14,7 @@ from models.experimental import attempt_load
 from utils.datasets import create_dataloader, dicom2rgb, standardize_image, unstandardize_image
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, check_requirements, \
     box_iou, non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path, colorstr, \
-    remove_low_hu_detections, get_folder_key
+    remove_low_hu_detections, get_folder_key, print_metrics
 from utils.metrics import ap_per_class, ConfusionMatrix
 from utils.plots import plot_images, output_to_target, plot_study_txt
 from utils.torch_utils import select_device, time_synchronized, TracedModel
@@ -60,7 +60,6 @@ def test(data,
         save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
-
         # Load model
         model = attempt_load(weights, map_location=device)  # load FP32 model
         gs = max(int(model.stride.max()), 32)  # grid size (max stride)
@@ -69,8 +68,8 @@ def test(data,
         if trace:
             model = TracedModel(model, device, imgsz)
 
-    (save_dir / 'slice').mkdir(parents=True, exist_ok=True)  # make dir for slice stats
-    (save_dir / 'series').mkdir(parents=True, exist_ok=True)  # make dir for series stats
+    #(save_dir / 'slice').mkdir(parents=True, exist_ok=True)  # make dir for slice stats
+    #(save_dir / 'series').mkdir(parents=True, exist_ok=True)  # make dir for series stats
 
     # Half
     half = device.type != 'cpu' and half_precision  # half precision only supported on CUDA
@@ -112,15 +111,18 @@ def test(data,
     coco91class = coco80_to_coco91_class()
     s = ('%20s' + '%12s' * 6) % ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95')
     p, r, f1, mp, mr, map50, map = 0., 0., 0., 0., 0., 0., 0.
-    p_slice, r_slice, f1_slice, mp_slice, mr_slice, map50_slice, map_slice = 0., 0., 0., 0., 0., 0., 0.
-    p_series, r_series, f1_series, mp_series, mr_series, map50_series, map_series = 0., 0., 0., 0., 0., 0., 0.
+    #p_slice, r_slice, f1_slice, mp_slice, mr_slice, map50_slice, map_slice = 0., 0., 0., 0., 0., 0., 0.
+    #p_series, r_series, f1_series, mp_series, mr_series, map50_series, map_series = 0., 0., 0., 0., 0., 0., 0.
     t0, t1, t2 = 0., 0., 0.
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
     total_lowhu_removed = 0
-    stats_slice = []
-    stats_series_dict = defaultdict(list)
-    all_series = set()
+
+    slice_y_true = []
+    slice_y_score = []
+    series_true = defaultdict(bool)
+    series_confs = defaultdict(list)
+
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -160,14 +162,19 @@ def test(data,
             nl = len(labels)
             tcls = labels[:, 0].tolist() if nl else []  # target class
             path = Path(paths[si])
-            folder_key = get_folder_key(str(path.parent))
             seen += 1
-            all_series.add(folder_key)
+            folder_key = get_folder_key(str(path.parent))
+
+            max_conf_slice = 0.0
+            slice_has_label = len(labels) > 0
+
+            # Update labels for series; add label for slice
+            slice_y_true.append(slice_has_label)
+            series_true[folder_key] |= slice_has_label
 
             if len(pred) == 0:
                 if nl:
                     stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
-                    stats_slice.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
                 continue
 
             # Predictions
@@ -211,14 +218,6 @@ def test(data,
 
             # Assign all predictions as incorrect
             correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool, device=device)
-
-            # num_cls rows per image (i.e. slice)
-            num_cls = len(torch.unique(pred[:, 5]))
-            correct_slice = torch.zeros(num_cls, niou, dtype=torch.bool, device=device)
-            confs_slice = torch.zeros(num_cls)
-            pcls_slice = torch.unique(pred[:, 5])
-            tcls_slice = torch.unique(labels[:, 0]).tolist()
-
             if nl:
                 detected = []  # target indices
                 tcls_tensor = labels[:, 0]
@@ -251,28 +250,15 @@ def test(data,
                                 if len(detected) == nl:  # all targets already located in image
                                     break
                         # choosing indices of correct predictions (with at least iouv[0])
-                        #print("pred.shape", pred.shape)
-                        #print("pred", pred)
-                        #print("pi.shape", pi.shape)
-                        #print("pi", pi)
-                        #print("pred[pi]", pred[pi])
-                        #print("correct", correct)
-                        #print("correct[pi]", correct[pi])
-                        #print("correct[pi].sum(1)", correct[pi].sum(1))
                         correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
-                        #print("correct_predictions", correct_predictions)
-                        confs_slice[ci] = pred[pi][correct_predictions, 4].max(0)[0] if len(correct_predictions) else torch.zeros(1)
-                        correct_slice[ci] = correct[pi].max(0)[0]
-                        #print("correct_slice[ci]", correct_slice[ci])
-                        #print("confs_slice[ci]", confs_slice[ci])
-                        #print("pcls_slice", pcls_slice)
-                        #print("tcls_slice", tcls_slice)
+                        max_conf_slice = pred[pi][correct_predictions, 4].max(0)[0].item() if len(correct_predictions) else 0.0
 
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
 
-            stats_slice.append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice))
-            stats_series_dict[folder_key].append((correct_slice.cpu(), confs_slice.cpu(), pcls_slice.cpu(), tcls_slice))
+            series_confs[folder_key].append(max_conf_slice)
+            slice_y_score.append(max_conf_slice)
+
 
         # Plot images
         if plots and batch_i < 3:
@@ -285,66 +271,23 @@ def test(data,
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
-    #print("stats[0].shape (correct)", stats[0].shape)
-    #print("stats[1].shape (conf)", stats[1].shape)
-    #print("stats[2].shape (pcls)", stats[2].shape)
-    #print("stats[3].shape (tcls)", stats[3].shape)
-    stats_slice = [np.concatenate(x, 0) for x in zip(*stats_slice)]  # to numpy
-    #print("stats_slice[0].shape (correct)", stats_slice[0].shape)
-    #print("stats_slice[1].shape (conf)", stats_slice[1].shape)
-    #print("stats_slice[2].shape (pcls)", stats_slice[2].shape)
-    #print("stats_slice[3].shape (tcls)", stats_slice[3].shape)
-    #print("    seen    ", seen)
 
-    stats_series = []
-    #print("Dict total len", len(stats_series_dict))
-    for k, slices in stats_series_dict.items():
-        #print(f"    [{k}]", len(slices))
-        correct, confs, pcls, tcls = [torch.from_numpy(np.concatenate(x, 0)) for x in zip(*slices)]
-        #print("correct.shape", correct.shape)
-        nl = len(tcls)
-        if len(pcls) == 0:
-            if nl:
-                stats_series.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
-            continue
+    conf_threshold = 0.5
+    series_y_true, series_y_score, series_y_pred = [], [], []
 
-        for ci, cls in enumerate(torch.unique(tcls)):
-            pi = (cls == pcls).nonzero(as_tuple=False).view(-1)  # prediction indices
-            if pi.shape[0]:
-                correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
-                conf_series = confs[pi][correct_predictions].max(0)[0] if len(correct_predictions) \
-                    else torch.zeros(1)
-                #print("correct[pi, :].shape", correct[pi, :].shape)
-                #print("correct_series = correct[pi, :].max(0)[0].shape", correct[pi, :].max(0)[0].unsqueeze(0).shape)
-                correct_series = correct[pi, :].max(0)[0].unsqueeze(0)
+    for series_key, confs in series_confs.items():
+        series_y_true.append(series_true[series_key])
+        series_y_score.append(max(confs))
 
-                tcls_series = torch.unique(tcls).tolist() if len(torch.unique(tcls)) else []
-                # Append statistics (correct, conf, pcls, tcls)
-                stats_series.append((correct_series, conf_series, cls.float().unsqueeze(0), tcls_series))
-                #if (correct_series.shape == 0) or (conf_series.shape == 0) or (cls.shape == 0) or (len(tcls_series) == 0):
-                #    print("ZERO SHAPE")
-                #    print((correct_series, conf_series, cls, tcls_series))
-    #print("stats_series_dict", stats_series_dict)
-    #for ii, x in enumerate(zip(*stats_series)):
-    #    print("Going through", ii)
-    #    if ii == 1 or ii == 2:
-    #        print(x)
-    #    stats_series.append(np.concatenate(x, 0))
+    series_y_pred = (np.array(series_y_score) > conf_threshold).tolist()
+    slice_y_pred = (np.array(slice_y_score) > conf_threshold).tolist()
 
-    stats_series = [np.concatenate(x, 0) for x in zip(*stats_series)]  # to numpy
-    print("stats_series[0] (correct)", stats_series[0])
-    print("stats_series[1] (conf)", stats_series[1])
-    print("stats_series[2] (pcls)", stats_series[2])
-    print("stats_series[3] (tcls)", stats_series[3])
-    #print("stats_series[0].shape (correct)", stats_series[0].shape)
-    #print("stats_series[1].shape (conf)", stats_series[1].shape)
-    #print("stats_series[2].shape (pcls)", stats_series[2].shape)
-    #print("stats_series[3].shape (tcls)", stats_series[3].shape)
+    print("Slice-Level Metrics")
+    print_metrics(slice_y_true, slice_y_pred, slice_y_score)
+    print("Series-Level Metrics")
+    print_metrics(series_y_true, series_y_pred, series_y_score)
 
-    # Print results
-    pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
-
-    print('Box level')
+    print('Box level metrics')
     if len(stats) and stats[0].any():
         p, r, ap, f1, ap_class = ap_per_class(*stats, plot=plots, v5_metric=v5_metric, save_dir=save_dir, names=names)
         ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
@@ -352,46 +295,15 @@ def test(data,
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt = torch.zeros(1)
+
+    # Print results
+    pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
 
-    print('Slice level')
-    if len(stats_slice) and stats_slice[0].any():
-        p_slice, r_slice, ap_slice, f1_slice, ap_class_slice = ap_per_class(*stats_slice, plot=plots, v5_metric=v5_metric, save_dir=(save_dir / 'slice'), names=names)
-        ap50_slice, ap_slice = ap_slice[:, 0], ap_slice.mean(1)  # AP@0.5, AP@0.5:0.95
-        mp_slice, mr_slice, map50_slice, map_slice = p_slice.mean(), r_slice.mean(), ap50_slice.mean(), ap_slice.mean()
-        nt_slice = np.bincount(stats_slice[3].astype(np.int64), minlength=nc)  # number of targets per class
-    else:
-        nt_slice = torch.zeros(1)
-    print(pf % ('all', seen, nt_slice.sum(), mp_slice, mr_slice, map50_slice, map_slice))
-
-    print('Series level')
-    if len(stats_series) and stats_series[0].any():
-        p_series, r_series, ap_series, f1_series, ap_class_series = ap_per_class(*stats_series, plot=plots, v5_metric=v5_metric, save_dir=(save_dir / 'series'), names=names)
-        ap50_series, ap_series = ap_series[:, 0], ap_series.mean(1)  # AP@0.5, AP@0.5:0.95
-        mp_series, mr_series, map50_series, map_series = p_series.mean(), r_series.mean(), ap50_series.mean(), ap_series.mean()
-        nt_series = np.bincount(stats_series[3].astype(np.int64), minlength=nc)  # number of targets per class
-    else:
-        nt_series = torch.zeros(1)
-    total_series = len(all_series)
-    print(pf % ('all', total_series, nt_series.sum(), mp_series, mr_series, map50_series, map_series))
-
-    # Print results per class for boxes
+    # Print results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
-        print('Box level')
         for i, c in enumerate(ap_class):
             print(pf % (names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]))
-
-    # Print results per class for slices
-    if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats_slice):
-        print('Slice level')
-        for i, c in enumerate(ap_class_slice):
-            print(pf % (names[c], seen, nt_slice[c], p_slice[i], r_slice[i], ap50_slice[i], ap_slice[i]))
-
-    # Print results per class for series
-    if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats_series):
-        print('Series level')
-        for i, c in enumerate(ap_class_slice):
-            print(pf % (names[c], total_series, nt_series[c], p_series[i], r_series[i], ap50_series[i], ap_series[i]))
 
     # Print speeds
     t = tuple(x / seen * 1E3 for x in (t0, t1, t2, t0 + t1 + t2)) + (imgsz, imgsz, batch_size)  # tuple

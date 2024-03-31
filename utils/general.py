@@ -21,6 +21,8 @@ import yaml
 from utils.google_utils import gsutil_getsize
 from utils.metrics import fitness
 from utils.torch_utils import init_torch_seeds
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, \
+    average_precision_score
 
 # Settings
 torch.set_printoptions(linewidth=320, precision=5, profile='long')
@@ -28,6 +30,18 @@ np.set_printoptions(linewidth=320, formatter={'float_kind': '{:11.5g}'.format}) 
 pd.options.display.max_columns = 10
 cv2.setNumThreads(0)  # prevent OpenCV from multithreading (incompatible with PyTorch DataLoader)
 os.environ['NUMEXPR_MAX_THREADS'] = str(min(os.cpu_count(), 8))  # NumExpr max threads
+
+
+def print_metrics(y_true, y_pred, y_score):
+    roc_auc = roc_auc_score(y_true, y_score)
+    ap = average_precision_score(y_true, y_score)
+    accuracy = accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred, zero_division=0)
+    recall = recall_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred)
+
+    print(f"ACC: {accuracy:.2f}; P: {precision:.2f}; R: {recall:.2f}; F1: {f1:.2f}; \
+        ROC-AUC: {roc_auc:.2f}; AP: {ap:.2f}")
 
 
 def get_folder_key(path: str, last_n=5, short=False, short_cut=3, preserve_npy=True):
