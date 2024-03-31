@@ -252,8 +252,11 @@ def test(data,
                                 if len(detected) == nl:  # all targets already located in image
                                     break
                         # choosing indices of correct predictions (with at least iouv[0])
-                        correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
-                        max_conf_slice = pred[pi][correct_predictions, 4].max(0)[0].item() if len(correct_predictions) else 0.0
+                        if opt.bypass_iou:
+                            max_conf_slice = pred[:, 4].max().item()
+                        else:
+                            correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
+                            max_conf_slice = pred[pi][correct_predictions, 4].max(0)[0].item() if len(correct_predictions) else 0.0
 
             # Append statistics (correct, conf, pcls, tcls)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
@@ -374,6 +377,8 @@ if __name__ == '__main__':
     parser.add_argument('--std', type=int, default=773)
     parser.add_argument('--nolowhu', action='store_true',
                         help='remove detections with max HU value lower than --hu-thres argument')
+    parser.add_argument('--bypass-iou', action='store_true',
+                        help='do not exclude detections with IoU lower than 0.5 when evaluating series and slice level metrics')
     parser.add_argument('--hu-thres', type=int, default=1400,
                         help='threshold for removing detections with max HU value lower than given value')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
