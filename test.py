@@ -287,7 +287,7 @@ def test(data,
     print("Slice-Level Metrics")
     print_metrics(slice_y_true, slice_y_pred, slice_y_score)
     print("Series-Level Metrics")
-    #print(series_y_true, series_y_pred, series_y_score)
+    print(series_y_true, series_y_pred, series_y_score)
     print_metrics(series_y_true, series_y_pred, series_y_score)
 
     print('Box level metrics')
