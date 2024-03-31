@@ -175,6 +175,8 @@ def test(data,
             if len(pred) == 0:
                 if nl:
                     stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
+                series_confs[folder_key].append(max_conf_slice)
+                slice_y_score.append(max_conf_slice)
                 continue
 
             # Predictions
