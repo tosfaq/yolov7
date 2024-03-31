@@ -275,18 +275,19 @@ def test(data,
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
 
     conf_threshold = 0.5
-    series_y_true, series_y_score, series_y_pred = [], [], []
+    series_y_true, series_y_pred, series_y_score = [], [], []
 
     for series_key, confs in series_confs.items():
         series_y_true.append(series_true[series_key])
         series_y_score.append(max(confs))
 
-    series_y_pred = (np.array(series_y_score) > conf_threshold).tolist()
+    series_y_pred = (np.array(series_y_score) > conf_threshold).astype(int).tolist()
     slice_y_pred = (np.array(slice_y_score) > conf_threshold).tolist()
 
     print("Slice-Level Metrics")
     print_metrics(slice_y_true, slice_y_pred, slice_y_score)
     print("Series-Level Metrics")
+    print(series_y_true, series_y_pred, series_y_score)
     print_metrics(series_y_true, series_y_pred, series_y_score)
 
     print('Box level metrics')
