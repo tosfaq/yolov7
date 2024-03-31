@@ -278,7 +278,7 @@ def test(data,
     series_y_true, series_y_pred, series_y_score = [], [], []
 
     for series_key, confs in series_confs.items():
-        series_y_true.append(series_true[series_key])
+        series_y_true.append(int(series_true[series_key]))
         series_y_score.append(max(confs))
 
     series_y_pred = (np.array(series_y_score) > conf_threshold).astype(int).tolist()
@@ -287,7 +287,7 @@ def test(data,
     print("Slice-Level Metrics")
     print_metrics(slice_y_true, slice_y_pred, slice_y_score)
     print("Series-Level Metrics")
-    print(series_y_true, series_y_pred, series_y_score)
+    #print(series_y_true, series_y_pred, series_y_score)
     print_metrics(series_y_true, series_y_pred, series_y_score)
 
     print('Box level metrics')
