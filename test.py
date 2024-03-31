@@ -47,9 +47,6 @@ def test(data,
     # called by train.py
     if train_opt is not None:
         opt = train_opt
-        bypass_iou = False
-    else:
-        bypass_iou = opt.bypass_iou
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
@@ -255,7 +252,7 @@ def test(data,
                                 if len(detected) == nl:  # all targets already located in image
                                     break
                         # choosing indices of correct predictions (with at least iouv[0])
-                        if bypass_iou:
+                        if opt.bypass_iou:
                             max_conf_slice = pred[:, 4].max().item()
                         else:
                             correct_predictions = correct[pi].sum(1).nonzero(as_tuple=False)
