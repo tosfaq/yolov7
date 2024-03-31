@@ -73,30 +73,30 @@ def ap_per_class(tp, conf, pred_cls, target_cls, v5_metric=False, plot=False, sa
         n_l = (target_cls == c).sum()  # number of labels
         n_p = i.sum()  # number of predictions
 
-        print(f'number of predictions={n_p}; number of labels={n_l}')
-        print('Results for IoU=0.5 and lowest conf thr: ', end='')
+        #print(f'number of predictions={n_p}; number of labels={n_l}')
+        #print('Results for IoU=0.5 and lowest conf thr: ', end='')
         if n_p == 0 or n_l == 0:
             continue
         else:
             # Accumulate FPs and TPs
             fpc = (1 - tp[i]).cumsum(0)
             tpc = tp[i].cumsum(0)
-            print("FP:", "%5i" % fpc[-1, 0], end="; ")
-            print("TP:", "%5i" % tpc[-1, 0], end="; ")
-            print("FN:", "%5i" % (n_l - tpc[-1, 0]))
+            #print("FP:", "%5i" % fpc[-1, 0], end="; ")
+            #print("TP:", "%5i" % tpc[-1, 0], end="; ")
+            #print("FN:", "%5i" % (n_l - tpc[-1, 0]))
 
             # Recall
             recall = tpc / (n_l + 1e-16)  # recall curve
             r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
-            print("Recall:", "%5.3f" % recall[-1, 0], end="; ")
-            print("Recall vector", shrink_list([f"{i:.2f}" for i in r[ci].tolist()]))
+            #print("Recall:", "%5.3f" % recall[-1, 0], end="; ")
+            #print("Recall vector", shrink_list([f"{i:.2f}" for i in r[ci].tolist()]))
 
 
             # Precision
             precision = tpc / (tpc + fpc)  # precision curve
             p[ci] = np.interp(-px, -conf[i], precision[:, 0], left=1)  # p at pr_score
-            print("Precision:", "%5.3f" % precision[-1, 0], end="; ")
-            print("Precision vector", shrink_list([f"{i:.2f}" for i in p[ci].tolist()]))
+            #print("Precision:", "%5.3f" % precision[-1, 0], end="; ")
+            #print("Precision vector", shrink_list([f"{i:.2f}" for i in p[ci].tolist()]))
 
 
             # AP from recall-precision curve
@@ -114,7 +114,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, v5_metric=False, plot=False, sa
         plot_mc_curve(px, r, Path(save_dir) / 'R_curve.png', names, ylabel='Recall')
 
     i = f1.mean(0).argmax()  # max F1 index
-    print(f"results below at conf_thr={px[i]:.3f}")
+    #print(f"results below at conf_thr={px[i]:.3f}")
     return p[:, i], r[:, i], ap, f1[:, i], unique_classes.astype('int32')
 
 
