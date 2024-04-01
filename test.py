@@ -289,11 +289,15 @@ def test(data,
     series_y_pred = (np.array(series_y_score) > conf_threshold).astype(int).tolist()
     slice_y_pred = (np.array(slice_y_score) > conf_threshold).tolist()
 
-    print("Slice-Level Metrics")
+    series_keys = [key.split(os.sep)[1] for key in series_keys]
+    series_y_score_printable = [f"{score:.3f}" for score in series_y_score]
+
+    print(f"Slice-Level Metrics (total {len(slice_y_true)})")
     print_metrics(slice_y_true, slice_y_pred, slice_y_score)
-    print("Series-Level Metrics")
-    print(series_keys, series_y_true, series_y_pred, series_y_score)
-    print_metrics(series_y_true, series_y_pred, series_y_score)
+    print(f"Series-Level Metrics (total {len(series_y_true)})")
+    print(series_keys)
+    print(series_y_true, series_y_pred, series_y_score)
+    print_metrics(series_y_true, series_y_pred, series_y_score_printable)
 
     print('Box level metrics')
     if len(stats) and stats[0].any():

@@ -33,7 +33,6 @@ os.environ['NUMEXPR_MAX_THREADS'] = str(min(os.cpu_count(), 8))  # NumExpr max t
 
 
 def print_metrics(y_true, y_pred, y_score):
-    print("y_true", len(y_true), "y_pred", len(y_pred), "y_score", len(y_score))
     try:
         roc_auc = roc_auc_score(y_true, y_score)
     except:
