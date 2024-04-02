@@ -72,6 +72,14 @@ def load_dicom(image_path, window_level=0, window_width=4500):
     #im = im.clip(minval, maxval)
     return im
 
+def check_dicom(image_path):
+    if 'npy' in image_path:
+        im = np.load(image_path)
+        return True
+    else:
+        dcm = pydicom.dcmread(image_path)
+        return dcm[0x00080060].value == 'CT' and hasattr(dcm, "ImagePositionPatient")
+
 def standardize_image(im, mean, std):
     return (im - mean) / std
 
@@ -189,7 +197,7 @@ class LoadImages:  # for inference (currently supports only images)
             raise Exception(f'ERROR: {p} does not exist')
 
         #images = [x for x in files if x.split('.')[-1].lower() in img_formats]
-        images = [x for x in files if os.path.isfile(x)]
+        images = [x for x in files if os.path.isfile(x) and check_dicom(x)]
         videos = []
         #videos = [x for x in files if x.split('.')[-1].lower() in vid_formats]
         ni, nv = len(images), len(videos)
