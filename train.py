@@ -25,7 +25,7 @@ import test  # import test.py to get mAP after each epoch
 from models.experimental import attempt_load
 from models.yolo import Model
 from utils.autoanchor import check_anchors
-from utils.datasets import create_dataloader, standardize_image, unstandardize_image
+from utils.datasets import create_dataloader, preprocess_image
 from utils.general import labels_to_class_weights, increment_path, labels_to_image_weights, init_seeds, \
     fitness, strip_optimizer, get_latest_run, check_dataset, check_file, check_git_status, check_img_size, \
     check_requirements, print_mutation, set_logging, one_cycle, colorstr
@@ -42,6 +42,9 @@ def train(hyp, opt, device, tb_writer=None):
     logger.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     save_dir, epochs, batch_size, total_batch_size, weights, rank, freeze = \
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.total_batch_size, opt.weights, opt.global_rank, opt.freeze
+
+    assert len(opt.pp_window_level) == len(
+        opt.pp_window_width), "Lengths of pp-window_level and pp-window_width must be equal!"
 
     # Directories
     wdir = save_dir / 'weights'
@@ -79,20 +82,32 @@ def train(hyp, opt, device, tb_writer=None):
     names = ['item'] if opt.single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
     assert len(names) == nc, '%g names found for nc=%g dataset in %s' % (len(names), nc, opt.data)  # check
 
+    preprocess_dict = {
+        "type": opt.preprocess_type
+    }
+    if opt.preprocess_type == "mean_std":
+        preprocess_dict["mean"] = opt.mean
+        preprocess_dict["std"] = opt.std
+    elif opt.preprocess_type == "window":
+        preprocess_dict["window_level"] = opt.pp_window_level
+        preprocess_dict["window_width"] = opt.pp_window_width
+
+    n_channels = 1 if opt.preprocess_type == "mean_std" else len(opt.pp_window_level)
+
     # Model
     pretrained = weights.endswith('.pt')
     if pretrained:
         with torch_distributed_zero_first(rank):
             attempt_download(weights)  # download if not found locally
         ckpt = torch.load(weights, map_location=device)  # load checkpoint
-        model = Model(opt.cfg or ckpt['model'].yaml, ch=1, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+        model = Model(opt.cfg or ckpt['model'].yaml, ch=n_channels, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
         exclude = ['anchor'] if (opt.cfg or hyp.get('anchors')) and not opt.resume else []  # exclude keys
         state_dict = ckpt['model'].float().state_dict()  # to FP32
         state_dict = intersect_dicts(state_dict, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(state_dict, strict=False)  # load
         logger.info('Transferred %g/%g items from %s' % (len(state_dict), len(model.state_dict()), weights))  # report
     else:
-        model = Model(opt.cfg, ch=1, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+        model = Model(opt.cfg, ch=n_channels, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
     with torch_distributed_zero_first(rank):
         check_dataset(data_dict)  # check
     train_path = data_dict['train']
@@ -338,7 +353,8 @@ def train(hyp, opt, device, tb_writer=None):
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             ni = i + nb * epoch  # number integrated batches (since train start)
             imgs = imgs.to(device, non_blocking=True).float() #/ 255.0  # uint8 to float32, 0-255 to 0.0-1.0
-            imgs = standardize_image(imgs, opt.mean, opt.std)
+            imgs_original = imgs
+            imgs = preprocess_image(imgs, preprocess_dict)
 
             # Warmup
             if ni <= nw:
@@ -393,8 +409,7 @@ def train(hyp, opt, device, tb_writer=None):
                 # Plot
                 if plots and ni < 10:
                     f = save_dir / f'train_batch{ni}.jpg'  # filename
-                    # unstandardize before passing to plot (i.e passing original HU values)
-                    Thread(target=plot_images, args=(unstandardize_image(imgs, opt.mean, opt.std), targets, paths, f), kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
+                    Thread(target=plot_images, args=(imgs_original, targets, paths, f), kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
                     # if tb_writer:
                     #     tb_writer.add_image(f, result, dataformats='HWC', global_step=epoch)
                     #     tb_writer.add_graph(torch.jit.trace(model, imgs, strict=False), [])  # add model graph
@@ -537,6 +552,9 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str, default='data/coco.yaml', help='data.yaml path')
     parser.add_argument('--hyp', type=str, default='data/hyp.scratch.p5.yaml', help='hyperparameters path')
     parser.add_argument('--epochs', type=int, default=300)
+    parser.add_argument('--preprocess-type', choices=['window', 'mean_std'], default='mean_std')
+    parser.add_argument('--pp-window_level', nargs='*', type=int, default=[0])
+    parser.add_argument('--pp-window_width', nargs='*', type=int, default=[4500])
     parser.add_argument('--window_level', type=int, default=0)
     parser.add_argument('--window_width', type=int, default=4500)
     parser.add_argument('--mean', type=int, default=-878)

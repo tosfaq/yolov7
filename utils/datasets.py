@@ -80,6 +80,32 @@ def check_dicom(image_path):
         dcm = pydicom.dcmread(image_path)
         return dcm[0x00080060].value == 'CT' and hasattr(dcm, "ImagePositionPatient")
 
+def preprocess_image(im, preprocess_dict):
+    if 'type' not in preprocess_dict:
+        raise ValueError("Preprocessing dictionary must include a 'type' key.")
+
+    if preprocess_dict["type"] == "mean_std":
+        if 'mean' not in preprocess_dict or 'std' not in preprocess_dict:
+            raise ValueError("Mean and std values are required for mean_std preprocessing.")
+        return standardize_image(im, preprocess_dict["mean"], preprocess_dict["std"])
+    elif preprocess_dict["type"] == "window":
+        if 'window_level' not in preprocess_dict or 'window_width' not in preprocess_dict:
+            raise ValueError("Window level and window width are required for window preprocessing.")
+        channels = []
+        for level, width in zip(preprocess_dict["window_level"], preprocess_dict["window_width"]):
+            channels.append(window_image(im, level, width))
+        assert len(im.shape) == 4
+        chanelled_batch = torch.cat(channels, dim=1)
+        return chanelled_batch
+    else:
+        raise ValueError(f"Unsupported preprocessing type: {preprocess_dict['type']}")
+
+
+def window_image(im, window_level, window_width):
+    minval = window_level - (window_width / 2)
+    maxval = window_level + (window_width / 2)
+    return ((im - minval) / (maxval - minval)).clip(0.0, 1.0)
+
 def standardize_image(im, mean, std):
     return (im - mean) / std
 

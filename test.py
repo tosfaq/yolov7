@@ -11,7 +11,7 @@ import yaml
 from tqdm import tqdm
 
 from models.experimental import attempt_load
-from utils.datasets import create_dataloader, dicom2rgb, standardize_image, unstandardize_image
+from utils.datasets import create_dataloader, dicom2rgb, preprocess_image, #standardize_image
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, check_requirements, \
     box_iou, non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path, colorstr, \
     remove_low_hu_detections, get_folder_key, print_metrics
@@ -47,6 +47,10 @@ def test(data,
     # called by train.py
     if train_opt is not None:
         opt = train_opt
+
+    assert len(opt.pp_window_level) == len(
+        opt.pp_window_width), "Lengths of pp-window_level and pp-window_width must be equal!"
+    n_channels = 1 if opt.preprocess_type == "mean_std" else len(opt.pp_window_level)
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
@@ -66,7 +70,7 @@ def test(data,
         imgsz = check_img_size(imgsz, s=gs)  # check img_size
         
         if trace:
-            model = TracedModel(model, device, imgsz)
+            model = TracedModel(model, n_channels, device, imgsz)
 
     #(save_dir / 'slice').mkdir(parents=True, exist_ok=True)  # make dir for slice stats
     #(save_dir / 'series').mkdir(parents=True, exist_ok=True)  # make dir for series stats
@@ -75,6 +79,18 @@ def test(data,
     half = device.type != 'cpu' and half_precision  # half precision only supported on CUDA
     if half:
         model.half()
+
+
+
+    preprocess_dict = {
+        "type": opt.preprocess_type,
+    }
+    if opt.preprocess_type == "mean_std":
+        preprocess_dict["mean"] = opt.mean
+        preprocess_dict["std"] = opt.std
+    elif opt.preprocess_type == "window":
+        preprocess_dict["window_level"] = opt.pp_window_level
+        preprocess_dict["window_width"] = opt.pp_window_width
 
     # HU threshold normalised
     hu_thres_norm = (opt.hu_thres - opt.mean) / opt.std
@@ -97,7 +113,7 @@ def test(data,
     # Dataloader
     if not training:
         if device.type != 'cpu':
-            model(torch.zeros(1, 1, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
+            model(torch.zeros(1, n_channels, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
         task = opt.task if opt.task in ('train', 'val', 'test') else 'val'  # path to train/val/test images
         dataloader = create_dataloader(data[task], imgsz, batch_size, gs, opt, pad=0.5, rect=True,
                                        prefix=colorstr(f'{task}: '))[0]
@@ -127,7 +143,8 @@ def test(data,
         img = img.to(device, non_blocking=True)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         #img /= 255.0  # 0 - 255 to 0.0 - 1.0
-        img = standardize_image(img, opt.mean, opt.std)
+        img_original = img
+        img = preprocess_image(img, preprocess_dict)
         targets = targets.to(device)
         nb, _, height, width = img.shape  # batch size, channels, height, width
 
@@ -202,7 +219,7 @@ def test(data,
                                  "domain": "pixel"} for *xyxy, conf, cls in pred.tolist()]
                     boxes = {"predictions": {"box_data": box_data, "class_labels": names}}  # inference-space
 
-                    img_rgb = dicom2rgb(unstandardize_image(img[si], opt.mean, opt.std), opt.window_level, opt.window_width)
+                    img_rgb = dicom2rgb(img_original[si], opt.window_level, opt.window_width)
                     wandb_images.append(wandb_logger.wandb.Image(img_rgb, boxes=boxes, caption=path.name))
             wandb_logger.log_training_progress(predn, path, names) if wandb_logger and wandb_logger.wandb_run else None
 
@@ -268,10 +285,10 @@ def test(data,
         # Plot images
         if plots and batch_i < 3:
             f = save_dir / f'test_batch{batch_i}_labels.jpg'  # labels
-            Thread(target=plot_images, args=(unstandardize_image(img, opt.mean, opt.std), targets, paths, f, names),
+            Thread(target=plot_images, args=(img_original, targets, paths, f, names),
                    kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
             f = save_dir / f'test_batch{batch_i}_pred.jpg'  # predictions
-            Thread(target=plot_images, args=(unstandardize_image(img, opt.mean, opt.std), output_to_target(out), paths, f, names),
+            Thread(target=plot_images, args=(img_original, output_to_target(out), paths, f, names),
                    kwargs={'window_level': opt.window_level, 'window_width': opt.window_width}, daemon=True).start()
 
     # Compute statistics
@@ -375,6 +392,9 @@ if __name__ == '__main__':
     parser.add_argument('--data', type=str, default='data/coco.yaml', help='*.data path')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
+    parser.add_argument('--preprocess-type', choices=['window', 'mean_std'], default='mean_std')
+    parser.add_argument('--pp-window_level', nargs='*', type=int, default=[0])
+    parser.add_argument('--pp-window_width', nargs='*', type=int, default=[4500])
     parser.add_argument('--window_level', type=int, default=0)
     parser.add_argument('--window_width', type=int, default=4500)
     parser.add_argument('--mean', type=int, default=-878)

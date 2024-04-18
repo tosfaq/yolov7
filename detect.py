@@ -9,7 +9,7 @@ from numpy import random
 import os
 
 from models.experimental import attempt_load
-from utils.datasets import LoadStreams, LoadImages, dicom2rgb, standardize_image, unstandardize_image, get_folder_key
+from utils.datasets import LoadStreams, LoadImages, dicom2rgb, preprocess_image, get_folder_key
 from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
     scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path, remove_low_hu_detections
 from utils.plots import plot_one_box
@@ -21,6 +21,8 @@ def detect(save_img=False):
     save_img = not opt.nosave and not source.endswith('.txt')  # save inference images
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://', 'https://'))
+
+    assert len(opt.pp_window_level) == len(opt.pp_window_width), "Lengths of pp-window_level and pp-window_width must be equal!"
 
     # HU threshold normalised
     hu_thres_norm = (opt.hu_thres - opt.mean) / opt.std
@@ -39,8 +41,20 @@ def detect(save_img=False):
     stride = int(model.stride.max())  # model stride
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
 
+    preprocess_dict = {
+        "type": opt.preprocess_type,
+    }
+    if opt.preprocess_type == "mean_std":
+        preprocess_dict["mean"] = opt.mean
+        preprocess_dict["std"] = opt.std
+    elif opt.preprocess_type == "window":
+        preprocess_dict["window_level"] = opt.pp_window_level
+        preprocess_dict["window_width"] = opt.pp_window_width
+
+    n_channels = 1 if opt.preprocess_type == "mean_std" else len(opt.pp_window_level)
+
     if trace:
-        model = TracedModel(model, device, opt.img_size)
+        model = TracedModel(model, n_channels, device, opt.img_size)
 
     if half:
         model.half()  # to FP16
@@ -79,7 +93,7 @@ def detect(save_img=False):
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         #img /= 255.0  # 0 - 255 to 0.0 - 1.0
-        img = standardize_image(img, opt.mean, opt.std)
+        img = preprocess_image(img, preprocess_dict)
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
 
@@ -195,6 +209,9 @@ if __name__ == '__main__':
     parser.add_argument('--weights', nargs='+', type=str, default='yolov7.pt', help='model.pt path(s)')
     parser.add_argument('--source', type=str, default='inference/images', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
+    parser.add_argument('--preprocess-type', choices=['window', 'mean_std'], default='mean_std')
+    parser.add_argument('--pp-window_level', nargs='*', type=int, default=[0])
+    parser.add_argument('--pp-window_width', nargs='*', type=int, default=[4500])
     parser.add_argument('--window_level', type=int, default=0)
     parser.add_argument('--window_width', type=int, default=4500)
     parser.add_argument('--mean', type=int, default=-878)
