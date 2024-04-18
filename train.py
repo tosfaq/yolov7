@@ -93,7 +93,6 @@ def train(hyp, opt, device, tb_writer=None):
         preprocess_dict["window_width"] = opt.pp_window_width
 
     n_channels = 1 if opt.preprocess_type == "mean_std" else len(opt.pp_window_level)
-    print("n_channels", n_channels)
 
     # Model
     pretrained = weights.endswith('.pt')

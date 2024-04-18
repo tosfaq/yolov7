@@ -506,7 +506,7 @@ class IBin(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, cfg='yolor-csp-c.yaml', ch=3, nc=None, anchors=None):  # model, input channels, number of classes
+    def __init__(self, cfg='yolor-csp-c.yaml', ch=None, nc=None, anchors=None):  # model, input channels, number of classes
         super(Model, self).__init__()
         self.traced = False
         if isinstance(cfg, dict):
@@ -518,7 +518,8 @@ class Model(nn.Module):
                 self.yaml = yaml.load(f, Loader=yaml.SafeLoader)  # model dict
 
         # Define model
-        ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
+        if ch is None:
+            ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
         if nc and nc != self.yaml['nc']:
             logger.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml['nc'] = nc  # override yaml value
