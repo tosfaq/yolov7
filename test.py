@@ -11,7 +11,7 @@ import yaml
 from tqdm import tqdm
 
 from models.experimental import attempt_load
-from utils.datasets import create_dataloader, dicom2rgb, preprocess_image, #standardize_image
+from utils.datasets import create_dataloader, dicom2rgb, preprocess_image
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, check_requirements, \
     box_iou, non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path, colorstr, \
     remove_low_hu_detections, get_folder_key, print_metrics
