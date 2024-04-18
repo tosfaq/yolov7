@@ -91,10 +91,11 @@ def preprocess_image(im, preprocess_dict):
     elif preprocess_dict["type"] == "window":
         if 'window_level' not in preprocess_dict or 'window_width' not in preprocess_dict:
             raise ValueError("Window level and window width are required for window preprocessing.")
+        if len(im.shape) != 4:
+            im = im.unsqueeze(0)
         channels = []
         for level, width in zip(preprocess_dict["window_level"], preprocess_dict["window_width"]):
             channels.append(window_image(im, level, width))
-        assert len(im.shape) == 4
         chanelled_batch = torch.cat(channels, dim=1)
         return chanelled_batch
     else:
